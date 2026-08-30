@@ -18,7 +18,7 @@ For the concise URL-only instructions intended for a coding agent, see the
 From the target repository, install from the exact public repository URL:
 
 ```bash
-npx skills add "<repository-url>" --skill '*' --copy --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --copy --yes
 ```
 
 The public tree contains 10 direct skills. The complete collection is required
@@ -30,7 +30,7 @@ checkout. The installer chooses its configured agent destinations; pass
 For global scope, add `--global`:
 
 ```bash
-npx skills add "<repository-url>" --skill '*' --agent <host-agent-id> --copy --global --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --agent <host-agent-id> --copy --global --yes
 ```
 
 Use the agent identifier reported by the current harness. Targeting one agent
@@ -40,14 +40,13 @@ do not support global skills.
 For a deliberately focused stage, install one specialist explicitly:
 
 ```bash
-npx skills add "<repository-url>" --skill audit-coherence --copy --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill audit-coherence --copy --yes
 ```
 
 Use the harness's native installer when it provides one. Otherwise, `npx
 skills` is the compatible fallback. Do not invent a skills directory or copy
-only the orchestrator for a new audit. If the repository has not been
-published yet, use a clean clone of the release tree as the source and replace
-`<repository-url>` with the resulting public URL before sharing the docs.
+only the orchestrator for a new audit. The canonical source for this release
+is https://github.com/MPSMeridiaN/Auditor.
 
 After installation, verify discovery through the host's native listing. With
 `npx skills`, use `npx skills ls --json` and confirm all 10 names are present;

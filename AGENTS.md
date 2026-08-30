@@ -17,7 +17,7 @@ System Coherence, follow this contract:
    installer such as `npx skills` when it is available. Use the exact URL the
    user supplied; never invent an owner, repository slug, or filesystem path.
 4. Before installing, list the repository's available skills. With `npx
-   skills`, run `npx skills add <repository-url> --list` and inspect the
+   skills`, run `npx skills add https://github.com/MPSMeridiaN/Auditor --list` and inspect the
    result.
 5. Treat the complete System Coherence suite as the normal installation. It
    contains 10 direct skills: `system-coherence` and its nine companion
@@ -59,7 +59,7 @@ the installed methodology.
 Reusable user prompt:
 
 ```text
-Install the System Coherence skill suite from <repository-url>.
+Install the System Coherence skill suite from https://github.com/MPSMeridiaN/Auditor.
 
 Inspect the current coding-agent environment and use its native Agent Skills
 installer/discovery mechanism when available. Otherwise use a compatible

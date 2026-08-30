@@ -38,11 +38,12 @@ class DocumentationTests(unittest.TestCase):
             self.assertIn(phrase, lowered)
 
         self.assertIn(
-            'npx skills add "<repository-url>" --skill \'*\' --copy --yes',
+            'npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill \'*\' --copy --yes',
             readme,
         )
         self.assertIn("public github url", lowered)
         self.assertIn("install with your ai agent", lowered)
+        self.assertIn("https://github.com/MPSMeridiaN/Auditor", readme)
 
         for relative_path in (
             "docs/assets/system-coherence-hero.webp",

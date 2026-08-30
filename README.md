@@ -39,20 +39,18 @@ install or use the skills.
 
 ### Recommended: install the complete collection
 
-From the repository you want to audit, use the exact public GitHub URL for the
-published System Coherence repository:
+From the repository you want to audit, use the canonical public GitHub URL for
+the published System Coherence repository:
 
 ```bash
-npx skills add "<repository-url>" --skill '*' --copy --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --copy --yes
 ```
 
-The placeholder must be replaced with the public URL shown by the release
-repository; do not guess an owner or use a private development path. This
-checkout does not currently have a configured public Git remote, so publishing
-the repository and replacing this placeholder is a release prerequisite. The
-same command shape was verified from a clean Git remote and installed all 10
-skills. `--copy` makes the target self-contained; the source checkout does not
-need to remain available after installation.
+Use that URL verbatim; do not guess another owner or use a private development
+path. The release remote is the source of truth for the published suite. The
+same command shape installs all 10 skills. `--copy` makes the target
+self-contained; the source checkout does not need to remain available after
+installation.
 
 `npx skills` uses its configured agent destinations. Run the command from the
 target project for project-local scope. If the harness should receive the
@@ -61,7 +59,7 @@ reported by that harness. For a user-wide installation, target the requested
 agent explicitly and add `--global`:
 
 ```bash
-npx skills add "<repository-url>" --skill '*' --agent <host-agent-id> --copy --global --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --agent <host-agent-id> --copy --global --yes
 ```
 
 Do not hardcode an agent's skills directory when the host already provides a
@@ -75,7 +73,7 @@ resources below that skill; the target project owns `.coherence/`.
 Give your coding agent this repository URL and ask it:
 
 ```text
-Install the System Coherence skill suite from <repository-url>.
+Install the System Coherence skill suite from https://github.com/MPSMeridiaN/Auditor.
 Inspect the current harness, use its native Agent Skills installer when one is
 available, otherwise use a compatible Agent Skills installer. List the
 repository's available skills, install the complete suite in the requested
@@ -91,7 +89,7 @@ intentionally focused stage or an already-populated artifact workspace.
 For a focused specialist, install only that skill:
 
 ```bash
-npx skills add "<repository-url>" --skill audit-coherence --copy --yes
+npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill audit-coherence --copy --yes
 ```
 
 Use the complete collection for a new end-to-end audit. A focused install does
