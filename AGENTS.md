@@ -5,6 +5,10 @@ This repository publishes the System Coherence Agent Skills suite. The
 the optional Python verifier are repository development surfaces, not runtime
 dependencies of an installed skill.
 
+`main` is the canonical release branch. The repository name is `Auditor`, while
+the published product and optional Python distribution are named System
+Coherence and `system-coherence`.
+
 When a user provides this repository URL and asks you to install and use
 System Coherence, follow this contract:
 
@@ -55,6 +59,12 @@ With `npx skills`, use `npx skills update --project --yes` or
 not supported, repeat the complete install from the new release source. Never
 delete or replace the target project's `.coherence/` workspace when updating
 the installed methodology.
+
+Before publishing a source change, run the optional verifier's complete local
+gate: `coherence validate-skills --json .`, `coherence eval --json .`,
+`coherence doctor --strict --json .`, and `coherence release-check --json .`.
+Release assets must come from the passing GitHub release workflow; do not
+commit generated `.coherence/`, build, dist, or report directories.
 
 Reusable user prompt:
 

@@ -1,0 +1,28 @@
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include LICENSE
+include README.md
+include SECURITY.md
+include pyproject.toml
+recursive-include src/coherence *.py
+recursive-include tests *.py
+recursive-include examples *.md *.py *.json
+recursive-include docs *.md *.svg *.webp
+recursive-include skills *.md *.json
+prune .agents
+prune .coherence
+prune build
+prune dist
+prune release
+prune release-evidence
+prune reports
+prune src/system_coherence.egg-info
+exclude src/system_coherence.egg-info/*
+recursive-exclude src/system_coherence.egg-info *
+global-exclude .env*
+global-exclude *.bak
+global-exclude *.log
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__/*

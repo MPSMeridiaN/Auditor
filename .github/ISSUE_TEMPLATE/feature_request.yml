@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a change to the coherence workflow or public skill suite.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and user goal
+      description: What behavior or workflow is currently missing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the observable contract, artifacts, and failure behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and limitations
+      description: Include compatibility, security, or distribution trade-offs.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I checked the existing documentation and issue tracker.
+          required: true
+        - label: I will not include secrets or private repository content.
+          required: true

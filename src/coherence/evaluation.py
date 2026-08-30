@@ -26,7 +26,12 @@ def _safe_path(root: Path, relative_path: str) -> Path | None:
     path = Path(relative_path)
     if path.is_absolute() or ".." in path.parts:
         return None
-    resolved = (root / path).resolve()
+    candidate = root / path
+    if candidate.is_symlink():
+        return None
+    if any(parent.is_symlink() for parent in candidate.parents if parent != root):
+        return None
+    resolved = candidate.resolve()
     try:
         resolved.relative_to(root)
     except ValueError:
@@ -99,7 +104,9 @@ def validate_scenarios(root: Path, scenarios: Any) -> list[str]:
 
 
 def _load_module(root: Path, relative_path: str, module_name: str):
-    path = root / relative_path
+    path = _safe_path(root, relative_path)
+    if path is None:
+        raise ValueError(f"unsafe fixture module path: {relative_path}")
     spec = spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"could not load fixture module: {path}")

@@ -16,6 +16,9 @@ from .models import ARTIFACT_TYPES, utc_now
 from .schema import validate_envelope
 
 
+MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
+
+
 def _canonical_json(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
         "utf-8"
@@ -77,6 +80,9 @@ class Workspace:
         return self.coherence_dir / "tmp"
 
     def ensure(self) -> None:
+        if self.root.exists() and not self.root.is_dir():
+            raise ValueError(f"workspace root is not a directory: {self.root}")
+        self.root.mkdir(parents=True, exist_ok=True)
         for path in (
             self.coherence_dir,
             self.artifacts_dir,
@@ -84,6 +90,8 @@ class Workspace:
             self.history_dir,
             self.tmp_dir,
         ):
+            if path.is_symlink():
+                raise ValueError(f"workspace path must not be a symlink: {path}")
             path.mkdir(parents=True, exist_ok=True)
 
 
@@ -93,12 +101,28 @@ class ArtifactStore:
     def __init__(self, workspace: Workspace | Path) -> None:
         self.workspace = workspace if isinstance(workspace, Workspace) else Workspace(workspace)
 
+    def _safe_path(self, path: Path) -> Path:
+        if path.is_symlink() or any(
+            parent.is_symlink()
+            for parent in path.parents
+            if parent != self.workspace.root
+        ):
+            raise ValueError(f"refusing to follow symlink in workspace: {path}")
+        try:
+            path.resolve(strict=False).relative_to(self.workspace.root)
+        except ValueError as exc:
+            raise ValueError(f"workspace path escapes target root: {path}") from exc
+        return path
+
     def read(self, artifact_type: str) -> dict[str, Any] | None:
         if artifact_type not in ARTIFACT_TYPES:
             raise ValueError(f"unknown artifact_type: {artifact_type}")
         path = self.workspace.artifacts_dir / f"{artifact_type}.json"
+        self._safe_path(path)
         if not path.exists():
             return None
+        if path.stat().st_size > MAX_ARTIFACT_BYTES:
+            raise ValueError(f"artifact exceeds {MAX_ARTIFACT_BYTES} bytes: {path}")
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -127,6 +151,7 @@ class ArtifactStore:
         normalized = copy.deepcopy(envelope)
         artifact_type = normalized["artifact_type"]
         target = self.workspace.artifacts_dir / f"{artifact_type}.json"
+        self._safe_path(target)
         superseded_evidence_ids: set[str] = set()
         if artifact_type == "repository-evidence":
             try:
@@ -226,8 +251,13 @@ class ArtifactStore:
             if not path.exists():
                 continue
             try:
+                self._safe_path(path)
+                if path.stat().st_size > MAX_ARTIFACT_BYTES:
+                    raise ValueError(
+                        f"artifact exceeds {MAX_ARTIFACT_BYTES} bytes"
+                    )
                 value = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as exc:
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
                 errors_by_type[artifact_type] = [f"could not parse artifact: {exc}"]
                 continue
             errors = validate_envelope(value, expected_type=artifact_type)
@@ -266,7 +296,11 @@ class ArtifactStore:
             return set()
         evidence_ids: set[str] = set()
         for path in history_dir.glob("*.json"):
+            if path.is_symlink():
+                continue
             try:
+                if path.stat().st_size > MAX_ARTIFACT_BYTES:
+                    continue
                 value = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue

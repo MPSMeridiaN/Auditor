@@ -6,20 +6,10 @@ import subprocess
 import tempfile
 import unittest
 
+from coherence.skills import PUBLIC_SKILLS
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_SKILLS = {
-    "analyze-regression",
-    "audit-coherence",
-    "discover-capabilities",
-    "model-behavior",
-    "model-states",
-    "plan-remediation",
-    "reconstruct-system",
-    "revalidate-coherence",
-    "system-coherence",
-    "trace-implementation",
-}
 
 
 def _npx_command() -> str:
@@ -71,6 +61,12 @@ class DistributionTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8").lower()
             for phrase in forbidden_phrases:
                 self.assertNotIn(phrase, text, f"{path} depends on {phrase!r}")
+
+    def test_public_skills_define_a_repository_text_trust_boundary(self):
+        for path in sorted((PROJECT_ROOT / "skills").glob("*/SKILL.md")):
+            text = path.read_text(encoding="utf-8").lower()
+            self.assertIn("evidence trust boundary", text)
+            self.assertIn("untrusted evidence", text)
 
     def test_public_skills_use_only_existing_skill_local_references(self):
         expected = {
@@ -187,7 +183,15 @@ class DistributionTests(unittest.TestCase):
     def test_optional_python_package_has_no_skill_data_installer(self):
         pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertNotIn("[tool.setuptools.data-files]", pyproject)
-        self.assertFalse((PROJECT_ROOT / "MANIFEST.in").exists())
+        manifest = (PROJECT_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("recursive-include skills *.md *.json", manifest)
+        self.assertIn("prune .coherence", manifest)
+        self.assertIn("prune build", manifest)
+
+    def test_source_distribution_bridge_keeps_generated_metadata_out(self):
+        setup = (PROJECT_ROOT / "setup.py").read_text(encoding="utf-8")
+        self.assertIn("class SourceDistribution", setup)
+        self.assertIn(".egg-info", setup)
 
     def test_readme_describes_standard_skill_installation(self):
         readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8").lower()

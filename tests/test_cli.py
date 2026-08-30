@@ -111,6 +111,46 @@ class CliTests(unittest.TestCase):
             self.assertEqual(exit_code, 2)
             self.assertIn("could not resolve git diff base", errors.getvalue())
 
+    def test_doctor_is_read_only_and_reports_repository_contract(self):
+        project_root = Path(__file__).resolve().parents[1]
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            exit_code = main(["doctor", str(project_root), "--json"])
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(output.getvalue())
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["tool"], "coherence doctor")
+        self.assertTrue(any(item["name"] == "skill-tree" for item in payload["checks"]))
+
+    def test_explain_and_findings_are_safe_before_initialization(self):
+        with tempfile.TemporaryDirectory(prefix="coherence-cli-") as directory:
+            root = Path(directory)
+            explain_output = io.StringIO()
+            findings_output = io.StringIO()
+
+            with redirect_stdout(explain_output):
+                self.assertEqual(main(["explain", str(root), "--json"]), 0)
+            with redirect_stdout(findings_output):
+                self.assertEqual(main(["findings", str(root), "--json"]), 0)
+
+            explain = json.loads(explain_output.getvalue())
+            findings = json.loads(findings_output.getvalue())
+            self.assertEqual(explain["route"]["stage"], "evidence")
+            self.assertFalse(findings["available"])
+
+    def test_revalidation_is_explicitly_reported_before_a_scope_exists(self):
+        with tempfile.TemporaryDirectory(prefix="coherence-cli-") as directory:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                exit_code = main(["revalidation", directory, "--json"])
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(output.getvalue())
+            self.assertFalse(payload["available"])
+            self.assertEqual(payload["validation_errors"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

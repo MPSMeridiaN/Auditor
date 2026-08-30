@@ -8,8 +8,11 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from . import __version__
 from .config import initialize_workspace
+from .doctor import run_doctor
 from .evidence import capture
+from .release import release_check
 from .skills import validate_skill_tree
 from .store import ArtifactStore, Workspace
 
@@ -18,6 +21,11 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="coherence",
         description="Validate, route, and preserve a System Coherence workspace.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -46,6 +54,20 @@ def _parser() -> argparse.ArgumentParser:
     invalidate.add_argument("--base", default=None)
     invalidate.add_argument("--json", action="store_true", dest="as_json")
 
+    regression = commands.add_parser(
+        "regression", help="calculate and persist scoped revalidation"
+    )
+    regression.add_argument("root", nargs="?", default=".")
+    regression.add_argument("paths", nargs="*")
+    regression.add_argument("--base", default=None)
+    regression.add_argument("--json", action="store_true", dest="as_json")
+
+    revalidation = commands.add_parser(
+        "revalidation", help="show the current revalidation result"
+    )
+    revalidation.add_argument("root", nargs="?", default=".")
+    revalidation.add_argument("--json", action="store_true", dest="as_json")
+
     ledger = commands.add_parser("ledger", help="derive and render the coherence ledger")
     ledger.add_argument("root", nargs="?", default=".")
     ledger.add_argument("--json", action="store_true", dest="as_json")
@@ -54,9 +76,34 @@ def _parser() -> argparse.ArgumentParser:
     skills.add_argument("root", nargs="?", default=".")
     skills.add_argument("--json", action="store_true", dest="as_json")
 
+    doctor = commands.add_parser("doctor", help="run read-only environment diagnostics")
+    doctor.add_argument("root", nargs="?", default=".")
+    doctor.add_argument("--strict", action="store_true")
+    doctor.add_argument("--json", action="store_true", dest="as_json")
+
+    explain = commands.add_parser("explain", help="explain the current route and next safe step")
+    explain.add_argument("root", nargs="?", default=".")
+    explain.add_argument("--json", action="store_true", dest="as_json")
+
+    findings = commands.add_parser("findings", help="list audit findings")
+    findings.add_argument("root", nargs="?", default=".")
+    findings.add_argument("--all", action="store_true", dest="include_closed")
+    findings.add_argument("--json", action="store_true", dest="as_json")
+
     evaluation = commands.add_parser("eval", help="run executable example evaluations")
     evaluation.add_argument("root", nargs="?", default=".")
     evaluation.add_argument("--json", action="store_true", dest="as_json")
+
+    release_check = commands.add_parser(
+        "release-check",
+        help="verify source, packages, skill archive, and clean installs",
+    )
+    release_check.add_argument("root", nargs="?", default=".")
+    release_check.add_argument("--dist-dir", default=None)
+    release_check.add_argument("--output-dir", default=None)
+    release_check.add_argument("--no-build", action="store_true")
+    release_check.add_argument("--no-clean-install", action="store_true")
+    release_check.add_argument("--json", action="store_true", dest="as_json")
 
     write = commands.add_parser("write", help="validate and store an artifact envelope")
     write.add_argument("artifact_file")
@@ -129,6 +176,54 @@ def _status(root: Path) -> dict[str, Any]:
     }
 
 
+def _explain(store: ArtifactStore) -> dict[str, Any]:
+    route = _route(store)
+    artifacts = store.read_all()
+    statuses = {
+        artifact_type: value.get("status")
+        for artifact_type, value in artifacts.items()
+    }
+    skill = route.get("skill", "system-coherence")
+    if route.get("stage") == "complete":
+        next_step = "No specialist stage is required; the current ledger is complete."
+    else:
+        next_step = f"Invoke {skill} and write {', '.join(route.get('produces', [])) or 'the routed repair'}."
+    return {
+        "route": route,
+        "artifact_statuses": statuses,
+        "next_step": next_step,
+    }
+
+
+def _findings(store: ArtifactStore, include_closed: bool = False) -> dict[str, Any]:
+    artifact = store.read("audit-findings")
+    if artifact is None:
+        return {
+            "available": False,
+            "artifact": "audit-findings",
+            "findings": [],
+            "message": "audit findings are not available; run the routed audit stage first",
+        }
+    content = artifact.get("content", {})
+    findings = content.get("findings", []) if isinstance(content, dict) else []
+    if not isinstance(findings, list):
+        findings = []
+    if not include_closed:
+        findings = [
+            finding
+            for finding in findings
+            if isinstance(finding, dict)
+            and finding.get("status") not in {"accepted", "closed", "resolved", "verified"}
+        ]
+    return {
+        "available": True,
+        "artifact": "audit-findings",
+        "source_revision": artifact.get("source_revision"),
+        "finding_count": len(findings),
+        "findings": findings,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -149,12 +244,32 @@ def main(argv: list[str] | None = None) -> int:
             errors = validate_skill_tree(root / "skills")
             _emit({"errors": errors}, args.as_json)
             return 1 if errors else 0
+        if args.command == "doctor":
+            report = run_doctor(root, strict=args.strict)
+            _emit(report, args.as_json)
+            return 0 if report["ok"] else 1
+        if args.command == "explain":
+            _emit(_explain(store), args.as_json)
+            return 0
+        if args.command == "findings":
+            _emit(_findings(store, args.include_closed), args.as_json)
+            return 0
         if args.command == "eval":
             from .evaluation import run_evaluations
 
             report = run_evaluations(root)
             _emit(report, args.as_json)
             return 1 if report["failed"] else 0
+        if args.command == "release-check":
+            report = release_check(
+                root,
+                dist_dir=Path(args.dist_dir) if args.dist_dir else None,
+                output_dir=Path(args.output_dir) if args.output_dir else None,
+                build_artifacts=not args.no_build,
+                clean_install=not args.no_clean_install,
+            )
+            _emit(report, args.as_json)
+            return 0 if report["passed"] else 1
         if args.command == "status":
             _emit(_status(root), args.as_json)
             return 0
@@ -165,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
             errors = store.validate_all()
             _emit({"errors": errors}, args.as_json)
             return 1 if errors else 0
-        if args.command == "invalidate":
+        if args.command in {"invalidate", "regression"}:
             from .invalidation import apply_scope, changed_paths, compute_scope
 
             paths = changed_paths(root, args.base, args.paths)
@@ -186,6 +301,16 @@ def main(argv: list[str] | None = None) -> int:
             result = {"scope": scope, "ledger": ledger}
             _emit(result, args.as_json)
             return 0
+        if args.command == "revalidation":
+            artifact = store.read("revalidation-results")
+            errors = store.validate_all().get("revalidation-results", [])
+            result = {
+                "available": artifact is not None,
+                "artifact": artifact,
+                "validation_errors": errors,
+            }
+            _emit(result, args.as_json)
+            return 1 if errors else 0
         if args.command == "ledger":
             from .ledger import derive
 

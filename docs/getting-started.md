@@ -126,7 +126,7 @@ links required for a durable handoff.
 From this source checkout, install the contributor tool with Python 3.11+:
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 coherence init /path/to/target
 coherence status --json /path/to/target
 coherence route --json /path/to/target
@@ -144,6 +144,18 @@ coherence ledger --json /path/to/target
 The verifier validates the protocol and makes routing deterministic; it does
 not simulate the host agent's reasoning. The skills remain usable without it.
 
+Before an audit, use the read-only diagnostics to inspect the environment:
+
+```bash
+coherence doctor --json /path/to/target
+coherence explain --json /path/to/target
+coherence findings --json /path/to/target
+```
+
+`doctor` does not initialize a workspace. `explain` and `findings` read only
+the current artifact snapshots and report when the requested information is
+not available.
+
 ## Verify this checkout
 
 Run the development gates from the source checkout:
@@ -155,8 +167,12 @@ coherence eval --json .
 python scripts/dogfood.py
 coherence validate --json .
 coherence route --json .
+coherence doctor --strict --json .
+coherence release-check --json .
 ```
 
 The generated root `.coherence/` directory is ignored. It is a disposable
 protocol fixture for this checkout, not a completed audit or part of the
-public skill collection.
+public skill collection. `release-check` builds from a clean staging copy,
+inspects the wheel and sdist, creates a deterministic skill-only archive, and
+uses disposable environments for clean-install probes.

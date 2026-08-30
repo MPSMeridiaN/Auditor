@@ -29,6 +29,9 @@ The standard-library test suite covers:
 - ledger precedence and closure after current revalidation;
 - Agent Skills frontmatter, direct-directory discovery, and handoff sections;
 - complete deterministic dogfood graph generation.
+- symlink and path traversal rejection at artifact and fixture boundaries;
+- release archive path, source-hygiene, and deterministic skill-archive checks;
+- read-only doctor, route explanation, and findings reporting.
 
 Run:
 
@@ -48,3 +51,7 @@ installed skills against a target repository.
 ## Interpreting results
 
 Protocol validation proves that artifacts are structurally and referentially coherent. Fixture evaluations prove the included probes reproduce the documented behaviors. A `verified` ledger entry means a current validation result exists with no open finding for that capability; it does not mean every possible state was explored. Read evidence, uncertainty, and coverage gaps alongside the ledger.
+
+Packaging evaluation is a separate boundary: a passing release check proves
+that the declared files can be built, inspected, and installed cleanly, not
+that an arbitrary target repository or build backend is safe to execute.

@@ -23,7 +23,8 @@ class PackagingTests(unittest.TestCase):
         pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
         self.assertNotIn("[tool.setuptools.data-files]", pyproject)
-        self.assertFalse((PROJECT_ROOT / "MANIFEST.in").exists())
+        self.assertTrue((PROJECT_ROOT / "MANIFEST.in").is_file())
+        self.assertTrue((PROJECT_ROOT / "setup.py").is_file())
 
     def test_wheel_contains_only_the_optional_python_verifier(self):
         try:

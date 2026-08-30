@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible problem in the verifier, skills, or release assets.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove secrets and private repository contents before posting.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the smallest safe command sequence or fixture.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, installer, and host agent if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Verifier output
+      description: Paste redacted JSON or command output when available.
+      render: text

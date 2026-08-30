@@ -69,6 +69,13 @@ Run the full verifier suite and document both what the evaluation proves and
 what it cannot prove. Host-agent instruction-following tests belong to the
 host integration because the offline verifier cannot simulate every model.
 
+Before proposing a release, run `coherence release-check --json .`. It verifies
+that the public skill tree remains exact, local skill references resolve after
+copying, source archives do not contain generated state or unsafe links, and
+the optional Python package imports from both wheel and sdist in clean
+environments. Treat the generated checksum and JSON report as release evidence
+rather than committed source files.
+
 ## Preserve compatibility
 
 Do not change stable IDs or artifact names casually. If a breaking payload

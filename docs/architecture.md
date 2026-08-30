@@ -36,6 +36,24 @@ skill requires a root-relative documentation, source, or build path.
 | `coherence.ledger` | Capability status derivation | `coherence-ledger` |
 | `coherence.skills` | Direct `SKILL.md` frontmatter and handoff validation | skill directory scan |
 | `coherence.evaluation` | Executable development fixture probes | evaluation report |
+| `coherence.doctor` | Read-only environment and workspace diagnostics | diagnostic report |
+| `coherence.release` | Source, archive, package, and clean-install gates | release report and checksums |
+
+## Source and distribution boundaries
+
+The repository intentionally carries more than the runtime skill package:
+
+| Surface | Contains | Distribution rule |
+| --- | --- | --- |
+| `skills/` | Ten `SKILL.md` files and orchestrator protocol resources | Copied by an Agent Skills installer; no Python dependency. |
+| `src/coherence/` | Optional verifier implementation | Included in the wheel and sdist only. |
+| `tests/`, `examples/`, `docs/`, `scripts/` | Development, evaluation, and contributor material | Included in the sdist when useful; never required by installed skills. |
+| `.coherence/`, `.agents/`, `build/`, `dist/`, reports | Generated target or build state | Ignored and rejected from runtime/release boundaries. |
+
+`coherence release-check` builds in a clean staging tree so a local cache
+cannot silently change the source archive. It rejects unsafe paths, links,
+generated metadata, high-confidence secret patterns, and absolute developer
+machine paths before release assets are produced.
 
 ## Stage boundaries
 
@@ -56,6 +74,11 @@ The Python stage registry is a verifier convenience. The installed
 `system-coherence` skill also carries an explicit route table so orchestration
 can resume from target files without importing Python or reading conversation
 history.
+
+The verifier's `doctor`, `explain`, and `findings` commands are read-only. The
+`eval` command executes only the repository's declared example fixtures, and
+the release checker invokes the packaging backend and installs artifacts in
+disposable environments; both require a trusted checkout.
 
 ## Target workspace and resumption
 

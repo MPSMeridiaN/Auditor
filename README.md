@@ -1,7 +1,14 @@
 # System Coherence
 
+[![CI](https://github.com/MPSMeridiaN/Auditor/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/MPSMeridiaN/Auditor/actions/workflows/test.yml)
+[![Latest release](https://img.shields.io/github/v/release/MPSMeridiaN/Auditor)](https://github.com/MPSMeridiaN/Auditor/releases)
+
 Most coding agents inspect files. **System Coherence reconstructs how the
 software is supposed to behave—then checks whether the layers agree.**
+
+The public GitHub project is `Auditor`; the product, Python distribution, and
+CLI are named `System Coherence`, `system-coherence`, and `coherence`. The
+repository's `main` branch and version tag are the release authorities.
 
 It is an installable collection of 10 Agent Skills for finding the gaps that
 ordinary tests and local code review can miss: stale derived state, broken
@@ -133,6 +140,31 @@ For a global installation, use `npx skills update --global --yes`. If the
 selected host does not support update, repeat the complete install command
 with the new repository revision. Installation updates replace methodology
 files only; `.coherence/` remains target-project state and must be preserved.
+
+## CLI and release boundary
+
+The optional verifier is intentionally separate from the installable skills.
+The `skills/` tree is the portable runtime product. The wheel and sdist contain
+the optional Python verifier and development evidence; the deterministic
+`system-coherence-skills-<version>.zip` release asset contains the self-contained
+skill tree and its protocol resources. Generated `.coherence/`, build, cache,
+and report directories are never part of the public runtime boundary.
+
+Useful read-only and verification commands are:
+
+| Command | Use |
+| --- | --- |
+| `coherence doctor --json .` | Diagnose Python, metadata, skill, protocol, Git, and workspace state without initializing it. |
+| `coherence explain --json .` | Explain the current artifact-driven route and next safe step. |
+| `coherence findings --json .` | List open audit findings; add `--all` for closed or verified findings. |
+| `coherence regression --json . <paths...>` | Calculate and persist the smallest safe revalidation scope for changed paths. |
+| `coherence revalidation --json .` | Inspect the current revalidation artifact and its validation errors. |
+| `coherence validate-skills --json .` | Check the exact ten-skill public tree and bundled references. |
+| `coherence release-check --json .` | Check source hygiene, packages, skill archive, clean installs, checksums, and report output. |
+
+Run `coherence release-check` only from a trusted source checkout because it
+invokes the build backend and disposable package-install environments. The
+release workflow refuses to publish when any required check fails.
 
 ## First invocation
 
@@ -279,7 +311,7 @@ For contributors and deterministic local checks, install the standard-library
 verifier from a source checkout (Python 3.11+):
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 coherence init /path/to/target
 coherence status --json /path/to/target
 coherence route --json /path/to/target
@@ -315,6 +347,8 @@ Run the deterministic checks from a source checkout:
 python -m unittest discover -s tests -v
 coherence validate-skills --json .
 coherence eval --json .
+coherence doctor --strict --json .
+coherence release-check --json .
 ```
 
 The fixture suite currently detects the two documented lifecycle defects and
@@ -335,6 +369,12 @@ evaluations remain a separate integration concern.
 - [Extension guide](docs/extension-guide.md) — add skills, artifact fields, and
   adapters.
 - [Evaluation methodology](docs/evaluation.md) — fixtures, probes, and limits.
+- [Compatibility](docs/compatibility.md) — supported Python, installer, and
+  host boundaries.
+- [Case studies](docs/case-studies.md) — representative coherence gaps and
+  the negative control.
+- [Security policy](SECURITY.md) — trust boundaries and vulnerability reports.
+- [Changelog](CHANGELOG.md) — release history and package/runtime versions.
 - [Contributing](CONTRIBUTING.md) — tests and release hygiene.
 
 ## Limitations
@@ -344,7 +384,8 @@ systems that are unavailable to the agent, or guarantee that every behavior
 was discovered. It makes those limits explicit through evidence references,
 uncertainty entries, partial or blocked status, and conservative invalidation.
 A valid artifact graph proves protocol integrity, not behavioral correctness
-by itself.
+by itself. Fixture evaluation and release packaging execute code in a trusted
+checkout; they are not a sandbox for hostile repositories.
 
 ## License
 

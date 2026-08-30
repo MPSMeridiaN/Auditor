@@ -69,8 +69,14 @@ class DocumentationTests(unittest.TestCase):
             "docs/evaluation.md",
             "AGENTS.md",
             "CONTRIBUTING.md",
+            "SECURITY.md",
+            "CHANGELOG.md",
+            "CODE_OF_CONDUCT.md",
+            "docs/compatibility.md",
+            "docs/case-studies.md",
             "LICENSE",
             ".github/workflows/test.yml",
+            ".github/workflows/release.yml",
         )
         missing = [path for path in required if not (PROJECT_ROOT / path).exists()]
 

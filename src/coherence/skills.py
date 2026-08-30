@@ -19,6 +19,21 @@ REQUIRED_SECTIONS = (
 
 _NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
+PUBLIC_SKILLS = frozenset(
+    {
+        "analyze-regression",
+        "audit-coherence",
+        "discover-capabilities",
+        "model-behavior",
+        "model-states",
+        "plan-remediation",
+        "reconstruct-system",
+        "revalidate-coherence",
+        "system-coherence",
+        "trace-implementation",
+    }
+)
+
 
 def _strip_scalar(value: str) -> str:
     value = value.strip()
@@ -58,6 +73,8 @@ def validate_skill_tree(skills_dir: Path) -> list[str]:
     """Return all format and contract errors in a skill collection."""
 
     skills_dir = Path(skills_dir)
+    if skills_dir.is_symlink():
+        return [f"skills directory must not be a symlink: {skills_dir}"]
     if not skills_dir.is_dir():
         return [f"skills directory does not exist: {skills_dir}"]
     directories = sorted(
@@ -65,9 +82,15 @@ def validate_skill_tree(skills_dir: Path) -> list[str]:
     )
     errors: list[str] = []
     for directory in directories:
+        if directory.is_symlink():
+            errors.append(f"symlinked skill directory is not allowed: {directory.name}")
+            continue
         path = directory / "SKILL.md"
         if not path.exists():
             errors.append(f"missing SKILL.md: {directory.name}")
+            continue
+        if path.is_symlink():
+            errors.append(f"symlinked SKILL.md is not allowed: {directory.name}")
             continue
         metadata, body, frontmatter_errors = parse_frontmatter(path)
         errors.extend(f"{directory.name}: {error}" for error in frontmatter_errors)
