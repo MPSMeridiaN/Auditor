@@ -18,11 +18,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 class EvaluationTests(unittest.TestCase):
     def test_fixture_evaluations_detect_two_defects_and_pass_the_negative_control(self):
-        report = run_evaluations(PROJECT_ROOT)
+        report = run_evaluations(PROJECT_ROOT, execute_fixtures=True)
 
         self.assertEqual(report["scenario_count"], 3)
         self.assertEqual(report["passed"], 3)
         self.assertEqual(report["failed"], 0)
+        self.assertEqual(report["execution"], "trusted-fixtures")
         self.assertEqual(
             {result["scenario_id"] for result in report["results"]},
             {"web-cache-staleness", "worker-partial-completion", "clean-cli-rename"},
@@ -37,6 +38,16 @@ class EvaluationTests(unittest.TestCase):
                 result["negative_control"],
                 result["expected_finding"] is False,
             )
+
+    def test_default_evaluation_mode_never_executes_fixture_code(self):
+        report = run_evaluations(PROJECT_ROOT)
+
+        self.assertEqual(report["execution"], "skipped")
+        self.assertTrue(report["requires_trusted_fixtures"])
+        self.assertEqual(report["failed"], 0)
+        self.assertTrue(
+            all(result["status"] == "not-run" for result in report["results"])
+        )
 
     def test_dogfood_build_writes_every_current_artifact_and_validates_graph(self):
         with tempfile.TemporaryDirectory(prefix="coherence-dogfood-") as directory:

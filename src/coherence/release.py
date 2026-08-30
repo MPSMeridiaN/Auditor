@@ -9,6 +9,7 @@ environments.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -46,7 +47,11 @@ _SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]+PRIVATE KEY-----"),
     re.compile(r"\b(?:ghp|github_pat|gho|ghs|ghr)_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\b(?:xox[baprs]-|npm_|pypi-)[A-Za-z0-9_-]{20,}\b"),
+)
+_SENSITIVE_FILENAME_SUFFIXES = frozenset(
+    {".key", ".pem", ".p12", ".pfx", ".crt", ".cer"}
 )
 
 _GENERATED_PARTS = frozenset(
@@ -69,6 +74,25 @@ _GENERATED_PARTS = frozenset(
     }
 )
 _GENERATED_SUFFIXES = (".pyc", ".pyo", ".log", ".tmp", ".bak")
+_SDIST_ALLOWED_ROOT_FILES = frozenset(
+    {
+        "CHANGELOG.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.md",
+        "SECURITY.md",
+        "pyproject.toml",
+        "setup.cfg",
+        "setup.py",
+    }
+)
+_PUBLIC_NO_REPLY_EMAIL = re.compile(
+    r"^(?:[0-9]+\+[^@\s]+|[^@\s]+)@(?:users\.noreply\.github\.com|noreply\.github\.com)$",
+    re.IGNORECASE,
+)
 
 
 def _check(
@@ -92,8 +116,37 @@ def _project_version(root: Path) -> tuple[str | None, str | None]:
     try:
         with (root / "pyproject.toml").open("rb") as handle:
             metadata = tomllib.load(handle)
-        version = metadata["project"]["version"]
-    except (KeyError, OSError, tomllib.TOMLDecodeError, TypeError) as exc:
+        project = metadata["project"]
+        version = project.get("version")
+        if version is None and "version" in project.get("dynamic", []):
+            attr = metadata.get("tool", {}).get("setuptools", {}).get("dynamic", {}).get(
+                "version", {}
+            ).get("attr")
+            if not isinstance(attr, str) or "." not in attr:
+                return None, "dynamic project version attribute is missing"
+            module_name, attribute_name = attr.rsplit(".", 1)
+            module_path = root / "src" / Path(*module_name.split("."))
+            source_path = module_path / "__init__.py"
+            if not source_path.is_file():
+                source_path = module_path.with_suffix(".py")
+            tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+            version = None
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    continue
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                if not any(
+                    isinstance(target, ast.Name) and target.id == attribute_name
+                    for target in targets
+                ):
+                    continue
+                value = node.value
+                if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                    version = value.value
+                    break
+            if version is None:
+                return None, f"could not resolve dynamic version attribute: {attr}"
+    except (KeyError, OSError, SyntaxError, tomllib.TOMLDecodeError, TypeError) as exc:
         return None, f"could not read project version: {exc}"
     if not isinstance(version, str) or not SEMVER_PATTERN.fullmatch(version):
         return None, f"project version is not semantic versioning: {version!r}"
@@ -101,7 +154,7 @@ def _project_version(root: Path) -> tuple[str | None, str | None]:
 
 
 def _runtime_version(root: Path) -> tuple[str | None, str | None]:
-    path = root / "src" / "coherence" / "__init__.py"
+    path = root / "src" / "coherence" / "_version.py"
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -152,12 +205,23 @@ def _is_generated(relative: str) -> bool:
     )
 
 
+def _is_sensitive_filename(relative: str) -> bool:
+    path = PurePosixPath(relative)
+    return (
+        path.name.lower().startswith(".env")
+        or path.suffix.lower() in _SENSITIVE_FILENAME_SUFFIXES
+    )
+
+
 def _scan_public_source(root: Path) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     files, _ = _walk_files(root)
     for path in files:
         relative = path.relative_to(root).as_posix()
         if _is_generated(relative):
+            continue
+        if _is_sensitive_filename(relative):
+            findings.append({"path": relative, "match": "sensitive filename"})
             continue
         try:
             data = path.read_bytes()
@@ -174,6 +238,152 @@ def _scan_public_source(root: Path) -> list[dict[str, str]]:
             if pattern.search(text):
                 findings.append({"path": relative, "match": pattern.pattern})
     return findings
+
+
+def _git_lines(root: Path, command: list[str], input_text: str | None = None) -> list[str]:
+    """Run a bounded Git query and return non-empty text lines."""
+
+    result = subprocess.run(
+        ["git", "-C", str(root), *command],
+        input=input_text,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or "git query failed"
+        raise RuntimeError(detail)
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def _public_refs(root: Path) -> list[str]:
+    refs = _git_lines(
+        root,
+        [
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/heads",
+            "refs/tags",
+        ],
+    )
+    return sorted(set(refs))
+
+
+def _historical_blob_findings(root: Path, refs: list[str]) -> list[dict[str, str]]:
+    object_lines = _git_lines(root, ["rev-list", "--objects", *refs])
+    object_ids = sorted({line.split(" ", 1)[0] for line in object_lines})
+    if not object_ids:
+        return []
+    result = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "--batch"],
+        input=("\n".join(object_ids) + "\n").encode("ascii"),
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or "git cat-file failed")
+    path_by_object = {
+        line.split(" ", 1)[0]: line.split(" ", 1)[1]
+        for line in object_lines
+        if " " in line
+    }
+    findings: list[dict[str, str]] = []
+    payload = result.stdout
+    offset = 0
+    while offset < len(payload):
+        header_end = payload.find(b"\n", offset)
+        if header_end < 0:
+            break
+        header = payload[offset:header_end].decode("ascii", errors="replace")
+        parts = header.split(" ")
+        offset = header_end + 1
+        if len(parts) != 3:
+            continue
+        try:
+            size = int(parts[2])
+        except ValueError:
+            break
+        blob = payload[offset : offset + size]
+        offset += size
+        if offset < len(payload) and payload[offset : offset + 1] == b"\n":
+            offset += 1
+        if parts[1] != "blob":
+            continue
+        text = blob.decode("utf-8", errors="ignore")
+        for pattern in (*_SECRET_PATTERNS, *_ABSOLUTE_DEV_PATH_PATTERNS):
+            if pattern.search(text):
+                findings.append(
+                    {
+                        "object": parts[0][:12],
+                        "path": path_by_object.get(parts[0], "(unnamed blob)"),
+                        "match": pattern.pattern,
+                    }
+                )
+    return findings
+
+
+def _history_privacy(root: Path) -> tuple[list[dict[str, str]], str]:
+    """Check public Git refs for private identity and high-confidence leaks."""
+
+    git_dir = root / ".git"
+    if not git_dir.exists():
+        return [], "no Git metadata; public history scan is not applicable"
+    if shutil.which("git") is None:
+        return [{"kind": "tooling", "message": "git executable is unavailable"}], "history scan could not run"
+    try:
+        refs = _public_refs(root)
+        if not refs:
+            return [], "no public refs found; history scan is not applicable"
+        findings: list[dict[str, str]] = []
+        log_lines = _git_lines(
+            root,
+            ["log", "--format=%H%x00%ae%x00%ce", *refs],
+        )
+        for line in log_lines:
+            fields = line.split("\x00")
+            if len(fields) != 3:
+                continue
+            commit, author_email, committer_email = fields
+            for role, email in (("author", author_email), ("committer", committer_email)):
+                normalized = email.strip().lower()
+                domain = normalized.rsplit("@", 1)[-1] if "@" in normalized else "(invalid)"
+                if not _PUBLIC_NO_REPLY_EMAIL.fullmatch(normalized):
+                    findings.append(
+                        {
+                            "kind": "private-commit-email",
+                            "commit": commit[:12],
+                            "role": role,
+                            "domain": domain,
+                        }
+                    )
+        for line in _git_lines(
+            root,
+            ["for-each-ref", "--format=%(refname)%00%(taggeremail)", "refs/tags"],
+        ):
+            fields = line.split("\x00")
+            if len(fields) != 2:
+                continue
+            tag_ref, tagger_email = fields
+            normalized = tagger_email.strip().strip("<>").lower()
+            domain = normalized.rsplit("@", 1)[-1] if "@" in normalized else "(invalid)"
+            if not _PUBLIC_NO_REPLY_EMAIL.fullmatch(normalized):
+                findings.append(
+                    {
+                        "kind": "private-tag-email",
+                        "tag": tag_ref.removeprefix("refs/tags/"),
+                        "domain": domain,
+                    }
+                )
+        findings.extend(
+            {"kind": "historical-content", **item}
+            for item in _historical_blob_findings(root, refs)
+        )
+        return findings, f"scanned {len(refs)} public refs"
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        return [{"kind": "tooling", "message": str(exc)}], "history scan could not run"
 
 
 def _validate_skill_distribution(root: Path) -> tuple[list[str], list[str]]:
@@ -224,9 +434,51 @@ def _validate_skill_distribution(root: Path) -> tuple[list[str], list[str]]:
     return errors, symlinks
 
 
+def _validate_documentation_links(root: Path) -> list[str]:
+    """Validate local Markdown links used by the public documentation."""
+
+    errors: list[str] = []
+    candidates = [root / "README.md", *sorted((root / "docs").glob("*.md"))]
+    for path in candidates:
+        if not path.is_file() or path.is_symlink():
+            if path == root / "README.md":
+                errors.append("README.md is missing or symlinked")
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            errors.append(f"{path.relative_to(root).as_posix()}: {exc}")
+            continue
+        for raw_target in _LOCAL_LINK_PATTERN.findall(text):
+            target = raw_target.split("#", 1)[0].strip()
+            if not target or target.startswith(("http:", "https:", "mailto:")):
+                continue
+            target_path = Path(target)
+            if target_path.is_absolute():
+                errors.append(
+                    f"{path.relative_to(root).as_posix()}: unsafe local link {target}"
+                )
+                continue
+            candidate = (path.parent / target_path).resolve()
+            try:
+                candidate.relative_to(root)
+            except ValueError:
+                errors.append(
+                    f"{path.relative_to(root).as_posix()}: link escapes repository {target}"
+                )
+                continue
+            if not candidate.is_file() or candidate.is_symlink():
+                errors.append(
+                    f"{path.relative_to(root).as_posix()}: missing local link {target}"
+                )
+    return errors
+
+
 def _run(command: list[str], cwd: Path, timeout: int = 300) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
-    environment.setdefault("SOURCE_DATE_EPOCH", "0")
+    # Reproducibility is a release invariant; a caller's ambient value must
+    # not silently change the bytes emitted by this check.
+    environment["SOURCE_DATE_EPOCH"] = "0"
     environment.pop("PYTHONPATH", None)
     return subprocess.run(
         command,
@@ -308,10 +560,14 @@ def _inspect_wheel(path: Path, version: str) -> list[str]:
     try:
         with zipfile.ZipFile(path) as archive:
             names = archive.namelist()
+            if len(names) != len(set(names)):
+                errors.append("wheel contains duplicate member names")
             for info in archive.infolist():
                 name = info.filename.replace(chr(92), "/")
                 if not _safe_archive_name(name):
                     errors.append(f"wheel contains unsafe path: {name}")
+                if _is_sensitive_filename(name):
+                    errors.append(f"wheel contains sensitive filename: {name}")
                 mode = (info.external_attr >> 16) & 0o170000
                 if mode == 0o120000:
                     errors.append(f"wheel contains symlink: {name}")
@@ -336,13 +592,13 @@ def _inspect_wheel(path: Path, version: str) -> list[str]:
 
 def _inspect_sdist(path: Path, version: str) -> list[str]:
     errors: list[str] = []
-    expected_prefixes = {
-        f"system-coherence-{version}/",
-        f"system_coherence-{version}/",
-    }
+    expected_root = f"system_coherence-{version}"
     try:
         with tarfile.open(path, "r:*") as archive:
             members = archive.getmembers()
+            names = [member.name.replace(chr(92), "/") for member in members]
+            if len(names) != len(set(names)):
+                errors.append("sdist contains duplicate member names")
             for member in members:
                 name = member.name.replace(chr(92), "/")
                 if not _safe_archive_name(name):
@@ -350,16 +606,43 @@ def _inspect_sdist(path: Path, version: str) -> list[str]:
                     continue
                 if member.issym() or member.islnk():
                     errors.append(f"sdist contains link: {name}")
-                parts = PurePosixPath(name).parts
+                relative = name.removeprefix(expected_root + "/")
+                if name != expected_root and not name.startswith(expected_root + "/"):
+                    errors.append(f"sdist contains unexpected root path: {name}")
+                    continue
+                if name == expected_root or member.isdir():
+                    if name not in {
+                        expected_root,
+                        expected_root + "/src",
+                        expected_root + "/src/coherence",
+                    }:
+                        errors.append(f"sdist contains unexpected directory: {name}")
+                    continue
+                if not member.isfile():
+                    errors.append(f"sdist contains unsupported member type: {name}")
+                    continue
+                allowed = (
+                    relative in _SDIST_ALLOWED_ROOT_FILES
+                    or relative.startswith("src/coherence/")
+                )
+                if not allowed:
+                    errors.append(f"sdist contains development file: {name}")
                 if _is_generated(name):
                     errors.append(f"sdist contains generated file: {name}")
-                if PurePosixPath(name).name.startswith(".env"):
-                    errors.append(f"sdist contains environment file: {name}")
-                if not any(
-                    name == prefix[:-1] or name.startswith(prefix)
-                    for prefix in expected_prefixes
-                ):
-                    errors.append(f"sdist contains unexpected root path: {name}")
+                if _is_sensitive_filename(name):
+                    errors.append(f"sdist contains sensitive filename: {name}")
+                extracted = archive.extractfile(member)
+                if extracted is not None:
+                    data = extracted.read(5 * 1024 * 1024 + 1)
+                    if len(data) <= 5 * 1024 * 1024:
+                        text = data.decode("utf-8", errors="ignore")
+                        for pattern in (*_SECRET_PATTERNS, *_ABSOLUTE_DEV_PATH_PATTERNS):
+                            if pattern.search(text):
+                                errors.append(
+                                    f"sdist contains possible leak in {name}: {pattern.pattern}"
+                                )
+                        if relative == "PKG-INFO" and f"Version: {version}" not in text:
+                            errors.append("sdist metadata version does not match project version")
     except (OSError, tarfile.TarError) as exc:
         errors.append(f"could not inspect sdist: {exc}")
     return errors
@@ -383,15 +666,24 @@ def _write_skill_archive(root: Path, version: str, output_dir: Path) -> Path:
         if not source.is_file() or source.is_symlink():
             raise ValueError(f"missing or unsafe archive input: {relative.as_posix()}")
 
-    with zipfile.ZipFile(
-        target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
-    ) as archive:
-        for relative in relative_paths:
-            info = zipfile.ZipInfo(relative.as_posix(), (1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.create_system = 3
-            info.external_attr = 0o100644 << 16
-            archive.writestr(info, (root / relative).read_bytes())
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=output_dir
+    )
+    os.close(descriptor)
+    try:
+        with zipfile.ZipFile(
+            temporary_name, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
+        ) as archive:
+            for relative in relative_paths:
+                info = zipfile.ZipInfo(relative.as_posix(), (1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = 0o100644 << 16
+                archive.writestr(info, (root / relative).read_bytes())
+        os.replace(temporary_name, target)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
     return target
 
 
@@ -411,7 +703,10 @@ def _inspect_skill_archive(path: Path, version: str) -> list[str]:
     )
     try:
         with zipfile.ZipFile(path) as archive:
-            names = set(archive.namelist())
+            listed_names = archive.namelist()
+            names = set(listed_names)
+            if len(listed_names) != len(names):
+                errors.append("skill archive contains duplicate member names")
             if names != expected:
                 errors.append(
                     "skill archive contents differ from the intended runtime set: "
@@ -423,6 +718,13 @@ def _inspect_skill_archive(path: Path, version: str) -> list[str]:
                 mode = (info.external_attr >> 16) & 0o170000
                 if mode == 0o120000:
                     errors.append(f"skill archive contains symlink: {info.filename}")
+                data = archive.read(info.filename)
+                text = data.decode("utf-8", errors="ignore")
+                for pattern in (*_SECRET_PATTERNS, *_ABSOLUTE_DEV_PATH_PATTERNS):
+                    if pattern.search(text):
+                        errors.append(
+                            f"skill archive contains possible leak in {info.filename}: {pattern.pattern}"
+                        )
     except (OSError, zipfile.BadZipFile) as exc:
         errors.append(f"could not inspect skill archive: {exc}")
     if not path.name.endswith(f"-{version}.zip"):
@@ -496,11 +798,29 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _atomic_text_write(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
+
+
 def _write_release_outputs(
     report: dict[str, Any],
     artifact_paths: list[Path],
     output_dir: Path,
 ) -> None:
+    if output_dir.is_symlink():
+        raise ValueError(f"refusing to write release outputs through symlink: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
     checksum_lines = [
         f"{_sha256(path)}  {path.name}" for path in sorted(artifact_paths, key=lambda p: p.name)
@@ -508,13 +828,13 @@ def _write_release_outputs(
     checksums = output_dir / "SHA256SUMS"
     if checksums.is_symlink():
         raise ValueError(f"refusing to replace symlink: {checksums}")
-    checksums.write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+    _atomic_text_write(checksums, "\n".join(checksum_lines) + "\n")
     report_path = output_dir / "release-check-report.json"
     if report_path.is_symlink():
         raise ValueError(f"refusing to replace symlink: {report_path}")
-    report_path.write_text(
+    _atomic_text_write(
+        report_path,
         json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
     )
 
 
@@ -567,6 +887,16 @@ def release_check(
         "no skill symlinks found" if not skill_symlinks else "skill symlinks are forbidden",
         skill_symlinks,
     )
+    documentation_errors = _validate_documentation_links(root)
+    _check(
+        checks,
+        "documentation-links",
+        not documentation_errors,
+        "local documentation links resolve"
+        if not documentation_errors
+        else "documentation link validation failed",
+        documentation_errors,
+    )
     source_findings = _scan_public_source(root)
     _check(
         checks,
@@ -587,6 +917,16 @@ def release_check(
         else "source symlinks are excluded from release staging",
         source_symlinks,
     )
+    history_findings, history_message = _history_privacy(root)
+    _check(
+        checks,
+        "history-privacy",
+        not history_findings,
+        "public Git history contains only GitHub no-reply identities and no high-confidence leak"
+        if not history_findings
+        else history_message,
+        history_findings,
+    )
 
     temporary_dist: tempfile.TemporaryDirectory[str] | None = None
     if dist_dir is None:
@@ -606,10 +946,11 @@ def release_check(
                 built, message = _build_python_artifacts(root, artifact_dir)
                 _check(checks, "python-build", built, message)
             else:
+                built = True
                 _check(checks, "python-build", True, "using existing artifacts")
 
-            wheels = sorted(artifact_dir.glob("*.whl"))
-            sdists = sorted(artifact_dir.glob("*.tar.gz"))
+            wheels = sorted(artifact_dir.glob("*.whl")) if built else []
+            sdists = sorted(artifact_dir.glob("*.tar.gz")) if built else []
             _check(
                 checks,
                 "wheel-count",
@@ -694,7 +1035,7 @@ def release_check(
                     _check(checks, "release-output", True, "checksums and report written")
                     report["passed"] = all(item["passed"] for item in checks)
                     _write_release_outputs(report, artifact_paths, destination)
-                except OSError as exc:
+                except (OSError, ValueError) as exc:
                     _check(checks, "release-output", False, str(exc))
             report["passed"] = all(item["passed"] for item in checks)
             report["checks"] = checks

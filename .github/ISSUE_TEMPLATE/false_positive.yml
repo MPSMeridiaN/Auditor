@@ -1,0 +1,38 @@
+name: False positive
+description: Report a finding that is not supported by the observed behavior.
+title: "[False positive]: "
+labels:
+  - false-positive
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Redact secrets, private paths, and private repository content before posting.
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding and expected result
+      description: Include the finding category, expected behavior, and why the result is incorrect.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste a minimal redacted artifact excerpt or fixture result.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, installer, and host agent if relevant.
+    validations:
+      required: true

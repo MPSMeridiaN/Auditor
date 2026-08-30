@@ -7,9 +7,6 @@ from setuptools import setup
 from setuptools.command.sdist import sdist as _sdist
 
 
-Path("build").mkdir(parents=True, exist_ok=True)
-
-
 class SourceDistribution(_sdist):
     """Keep setuptools' generated egg metadata out of the source archive."""
 
@@ -30,5 +27,4 @@ class SourceDistribution(_sdist):
 
 setup(
     cmdclass={"sdist": SourceDistribution},
-    options={"egg_info": {"egg_base": "build"}},
 )

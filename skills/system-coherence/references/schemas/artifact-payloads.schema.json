@@ -17,56 +17,135 @@
     {"$ref": "#/$defs/coherenceLedger"}
   ],
   "$defs": {
-    "idObject": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {"id": {"type": "string", "minLength": 1}}
-    },
     "repositoryEvidence": {
       "type": "object",
       "required": ["files"],
-      "properties": {"files": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["evidence_id", "path"],
+            "properties": {
+              "evidence_id": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
     },
-    "systemModel": {"type": "object", "required": ["system_id"]},
+    "systemModel": {
+      "type": "object",
+      "required": ["system_id"],
+      "properties": {
+        "system_id": {"type": "string", "minLength": 1},
+        "resources": {"type": "array", "items": {"type": "object"}}
+      }
+    },
     "capabilityMap": {
       "type": "object",
       "required": ["capabilities"],
-      "properties": {"capabilities": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["capability_id"],
+            "properties": {"capability_id": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
     },
     "behavioralContracts": {
       "type": "object",
       "required": ["contracts"],
-      "properties": {"contracts": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "contracts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["contract_id"],
+            "properties": {"contract_id": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
     },
     "stateModel": {
       "type": "object",
       "required": ["states", "transitions"],
       "properties": {
-        "states": {"type": "array", "items": {"type": "object"}},
-        "transitions": {"type": "array", "items": {"type": "object"}}
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["state_id"],
+            "properties": {"state_id": {"type": "string", "minLength": 1}}
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["transition_id"],
+            "properties": {"transition_id": {"type": "string", "minLength": 1}}
+          }
+        }
       }
     },
     "implementationTraces": {
       "type": "object",
       "required": ["traces"],
-      "properties": {"traces": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "traces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["trace_id"],
+            "properties": {"trace_id": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
     },
     "auditFindings": {
       "type": "object",
       "required": ["findings"],
-      "properties": {"findings": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["finding_id"],
+            "properties": {"finding_id": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
     },
     "interventionPlan": {
       "type": "object",
       "required": ["actions"],
-      "properties": {"actions": {"type": "array", "items": {"type": "object"}}}
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["action_id"],
+            "properties": {"action_id": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
     },
     "regressionScope": {
       "type": "object",
       "required": ["changed_paths", "impacted_capability_ids"],
       "properties": {
-        "changed_paths": {"type": "array", "items": {"type": "string"}},
-        "impacted_capability_ids": {"type": "array", "items": {"type": "string"}}
+        "changed_paths": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "impacted_capability_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
       }
     },
     "revalidationResults": {

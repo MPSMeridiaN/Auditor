@@ -13,7 +13,7 @@ addresses.
 
 - [ ] `python -m unittest discover -s tests -v`
 - [ ] `coherence validate-skills --json .`
-- [ ] `coherence eval --json .`
+- [ ] `coherence eval --trusted-fixtures --json .` (trusted checkout)
 - [ ] `coherence doctor --strict --json .`
 - [ ] `coherence release-check --json .` (when packaging or public skills are affected)
 - [ ] `git diff --check`

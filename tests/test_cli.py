@@ -99,6 +99,18 @@ class CliTests(unittest.TestCase):
             self.assertIn("repository-evidence", payload["validation_errors"])
             self.assertEqual(payload["next"]["repair_artifact"], "repository-evidence")
 
+    def test_eval_requires_explicit_trusted_fixture_execution(self):
+        project_root = Path(__file__).resolve().parents[1]
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            exit_code = main(["eval", str(project_root), "--json"])
+
+        self.assertEqual(exit_code, 2)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["execution"], "skipped")
+        self.assertTrue(payload["requires_trusted_fixtures"])
+
     def test_invalidate_reports_an_invalid_git_base(self):
         with tempfile.TemporaryDirectory(prefix="coherence-cli-") as directory:
             root = Path(directory)

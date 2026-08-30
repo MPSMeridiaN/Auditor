@@ -163,7 +163,7 @@ Run the development gates from the source checkout:
 ```bash
 python -m unittest discover -s tests -v
 coherence validate-skills --json .
-coherence eval --json .
+coherence eval --trusted-fixtures --json .
 python scripts/dogfood.py
 coherence validate --json .
 coherence route --json .
@@ -171,8 +171,10 @@ coherence doctor --strict --json .
 coherence release-check --json .
 ```
 
-The generated root `.coherence/` directory is ignored. It is a disposable
+The default `coherence eval --json .` only validates scenario metadata and
+refuses to execute repository Python. Add `--trusted-fixtures` only when the
+checkout is trusted. The generated root `.coherence/` directory is ignored. It is a disposable
 protocol fixture for this checkout, not a completed audit or part of the
 public skill collection. `release-check` builds from a clean staging copy,
-inspects the wheel and sdist, creates a deterministic skill-only archive, and
-uses disposable environments for clean-install probes.
+scans public Git history, inspects the wheel and sdist, creates a deterministic
+skill-only archive, and uses disposable environments for clean-install probes.

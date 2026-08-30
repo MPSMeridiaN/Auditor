@@ -1,0 +1,39 @@
+name: Host compatibility
+description: Report an Agent Skills installer, host, or operating-system compatibility gap.
+title: "[Compatibility]: "
+labels:
+  - compatibility
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove credentials and private repository details from logs.
+  - type: input
+    id: host
+    attributes:
+      label: Host and installer
+      description: Agent host, version, native installer or npx skills version.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, architecture, Python, Node, and shell versions.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and result
+      description: Include the smallest safe reproduction and redacted output.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: discovery
+    attributes:
+      label: Discovery state
+      description: State which of the 10 skills and bundled references were discovered.
+    validations:
+      required: true

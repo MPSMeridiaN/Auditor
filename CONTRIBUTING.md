@@ -8,7 +8,7 @@ Contributions should preserve the principle that the repository is the shared me
 python -m pip install -e ".[dev]"
 python -m unittest discover -s tests -v
 coherence validate-skills --json .
-coherence eval .
+coherence eval --trusted-fixtures .
 coherence doctor --strict --json .
 coherence release-check --json .
 ```
@@ -26,6 +26,8 @@ Python runtime code uses the standard library only. Keep tests runnable on Pytho
 - Keep the public skill tree separate from the optional Python verifier and
   never commit `.coherence/`, build output, reports, credentials, or local
   machine paths.
+- The wheel and sdist contain only the optional verifier; the ten-skill archive
+  is built separately. Run `coherence release-check` to verify both boundaries.
 
 For a new skill, follow [docs/extension-guide.md](docs/extension-guide.md). Keep it as a direct `skills/<name>/SKILL.md` sibling, bundle any required resources under that skill, and validate the collection with `coherence validate-skills --json .` from a source checkout.
 

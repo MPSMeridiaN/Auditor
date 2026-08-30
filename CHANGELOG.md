@@ -4,6 +4,25 @@ All notable changes to the System Coherence suite are documented here. The
 repository is the source of truth for the published skill tree; Python package
 versions and Git tags use the same semantic version.
 
+## [1.2.0] - 2026-08-30
+
+### Added
+
+- Explicit trusted-fixture opt-in for executable evaluations; default evaluation
+  validates metadata without importing repository code.
+- Strict artifact JSON parsing, methodology-version provenance, input-cycle
+  detection, orphaned-workspace checks, and stronger published schemas.
+- Public documentation-link, package-boundary, archive-duplicate, and Git
+  history privacy checks in the release gate.
+- False-positive, protocol-issue, and host-compatibility issue templates.
+
+### Changed
+
+- Source distributions now contain only the optional verifier and packaging
+  metadata; skills ship as a separate deterministic archive.
+- Release builds use a single runtime version source, current action runtimes,
+  atomic release outputs, and conservative failure behavior.
+
 ## [1.1.0] - 2026-08-30
 
 ### Added
@@ -37,5 +56,6 @@ versions and Git tags use the same semantic version.
   standard-library verifier.
 
 [1.1.0]: https://github.com/MPSMeridiaN/Auditor/releases/tag/v1.1.0
+[1.2.0]: https://github.com/MPSMeridiaN/Auditor/releases/tag/v1.2.0
 [1.0.1]: https://github.com/MPSMeridiaN/Auditor/releases/tag/v1.0.1
 [1.0.0]: https://github.com/MPSMeridiaN/Auditor/releases/tag/v1.0.0

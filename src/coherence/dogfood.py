@@ -9,7 +9,7 @@ from typing import Any
 from .config import initialize_workspace
 from .evidence import capture
 from .ledger import derive
-from .models import stable_id, utc_now
+from .models import METHODOLOGY_VERSION, stable_id, utc_now
 from .store import ArtifactStore, Workspace
 
 
@@ -25,6 +25,7 @@ def _envelope(
     return {
         "artifact_type": artifact_type,
         "schema_version": "1.0",
+        "methodology_version": METHODOLOGY_VERSION,
         "artifact_id": f"artifact/{artifact_type}",
         "run_id": stable_id("run", f"dogfood:{artifact_type}:{revision}"),
         "status": status,

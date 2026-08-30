@@ -17,6 +17,15 @@ drifts across the interface, domain, persistence, and external boundaries.
 
 ![Hand-drawn System Coherence map: a user action crosses UI, state, domain, and storage; a coherence gap becomes a finding, then repair and revalidation.](docs/assets/system-coherence-hero.webp)
 
+## Understand → install → verify → run
+
+| 1. Understand | 2. Install | 3. Verify | 4. Run |
+| --- | --- | --- | --- |
+| Reconstruct the behavior behind interfaces, state, storage, workers, and external effects. | Copy the complete 10-skill collection into the target project from the canonical URL. | Confirm all skills and local protocol resources are discoverable; use the optional verifier for artifact and release checks. | Invoke `system-coherence`; it resumes from `.coherence/` and routes the next evidence-backed stage. |
+
+The hand-drawn diagrams below show the two important paths: a behavior crossing
+layers, and durable artifacts crossing agent handoffs.
+
 ## The core idea
 
 System Coherence follows behavior end to end:
@@ -145,10 +154,11 @@ files only; `.coherence/` remains target-project state and must be preserved.
 
 The optional verifier is intentionally separate from the installable skills.
 The `skills/` tree is the portable runtime product. The wheel and sdist contain
-the optional Python verifier and development evidence; the deterministic
+only the optional Python verifier and packaging metadata; the deterministic
 `system-coherence-skills-<version>.zip` release asset contains the self-contained
-skill tree and its protocol resources. Generated `.coherence/`, build, cache,
-and report directories are never part of the public runtime boundary.
+skill tree and its protocol resources. Development fixtures, docs, tests,
+generated `.coherence/`, build, cache, and report directories stay outside both
+runtime distributions.
 
 Useful read-only and verification commands are:
 
@@ -163,8 +173,9 @@ Useful read-only and verification commands are:
 | `coherence release-check --json .` | Check source hygiene, packages, skill archive, clean installs, checksums, and report output. |
 
 Run `coherence release-check` only from a trusted source checkout because it
-invokes the build backend and disposable package-install environments. The
-release workflow refuses to publish when any required check fails.
+invokes the build backend, scans public Git history, and creates disposable
+package-install environments. The release workflow refuses to publish when
+any required check fails.
 
 ## First invocation
 
@@ -346,13 +357,16 @@ Run the deterministic checks from a source checkout:
 ```bash
 python -m unittest discover -s tests -v
 coherence validate-skills --json .
-coherence eval --json .
+coherence eval --trusted-fixtures --json .
 coherence doctor --strict --json .
 coherence release-check --json .
 ```
 
-The fixture suite currently detects the two documented lifecycle defects and
-does not over-report the negative control. Host-agent instruction-following
+`coherence eval --json .` validates scenario metadata but deliberately does not
+execute repository Python; it exits with a clear request for
+`--trusted-fixtures`. The explicit flag is appropriate only for a checkout you
+trust. The trusted fixture suite detects the two documented lifecycle defects
+and does not over-report the negative control. Host-agent instruction-following
 evaluations remain a separate integration concern.
 
 ## Documentation
@@ -384,8 +398,10 @@ systems that are unavailable to the agent, or guarantee that every behavior
 was discovered. It makes those limits explicit through evidence references,
 uncertainty entries, partial or blocked status, and conservative invalidation.
 A valid artifact graph proves protocol integrity, not behavioral correctness
-by itself. Fixture evaluation and release packaging execute code in a trusted
-checkout; they are not a sandbox for hostile repositories.
+by itself. Fixture evaluation with `--trusted-fixtures` and release packaging
+execute code in a trusted checkout; they are not a sandbox for hostile
+repositories. Release history checks can prevent new private identity leaks,
+but cannot retroactively control copies retained by third parties.
 
 ## License
 

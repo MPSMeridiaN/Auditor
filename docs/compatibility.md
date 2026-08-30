@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Public Agent Skills | Agent Skills-compatible hosts that discover direct child `SKILL.md` files | Use the complete ten-skill collection for a new audit. |
 | Installer | `npx skills` and native host installers | The repository does not require a custom registry or install path. |
-| Python verifier | Python 3.11 and 3.12 | Standard library at runtime; `build` is only a development/release extra. |
+| Python verifier | Python 3.11 and 3.12 | Standard library at runtime; `build` is only a development/release extra. Default evaluation is metadata-only; trusted fixture execution is opt-in. |
 | Operating systems | Windows, Linux, and macOS | Path and archive checks use platform-independent representations. |
 | Python artifacts | Wheel and sdist | The wheel is optional verifier runtime; the skill archive is the portable methodology package. |
 
@@ -29,7 +29,7 @@ From a source checkout:
 ```bash
 python -m unittest discover -s tests -v
 coherence validate-skills --json .
-coherence eval --json .
+coherence eval --trusted-fixtures --json .
 coherence doctor --strict --json .
 coherence release-check --json .
 ```
@@ -44,5 +44,8 @@ npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --copy --yes
 
 Other Python versions, third-party Agent Skills hosts, network-restricted
 package builds, and repositories containing unusual filesystem providers are
-not promised by this matrix. Report a reproducible compatibility gap with the
-host, operating system, version, command, and relevant verifier report.
+not promised by this matrix. The release workflow currently verifies Python
+3.12 on Ubuntu; Windows and macOS are expected from platform-independent path
+and archive handling but are not hosted release gates. Report a reproducible
+compatibility gap with the host, operating system, version, command, and
+relevant verifier report.

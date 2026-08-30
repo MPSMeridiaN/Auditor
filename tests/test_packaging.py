@@ -2,11 +2,11 @@ from pathlib import Path
 import subprocess
 import shutil
 import tempfile
-import tomllib
 import unittest
 import zipfile
 
 from coherence import __version__
+from coherence.release import _project_version
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -14,10 +14,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 class PackagingTests(unittest.TestCase):
     def test_runtime_version_matches_project_version(self):
-        with (PROJECT_ROOT / "pyproject.toml").open("rb") as handle:
-            project = tomllib.load(handle)
-
-        self.assertEqual(__version__, project["project"]["version"])
+        project_version, error = _project_version(PROJECT_ROOT)
+        self.assertIsNone(error)
+        self.assertEqual(__version__, project_version)
 
     def test_python_package_does_not_repackage_the_skill_collection(self):
         pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")

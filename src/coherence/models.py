@@ -7,6 +7,7 @@ import hashlib
 import re
 import unicodedata
 
+from ._version import __version__ as METHODOLOGY_VERSION
 
 ARTIFACT_STATUSES = frozenset(
     {"complete", "partial", "blocked", "stale", "invalid"}

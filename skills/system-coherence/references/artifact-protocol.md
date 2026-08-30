@@ -17,6 +17,7 @@ Every artifact is a JSON object with these required fields:
 | `schema_version` | Currently `1.0`. |
 | `artifact_id` | Stable logical address `artifact/<artifact-type>`. |
 | `run_id` | Identifier for the producing activity. |
+| `methodology_version` | Version of the producing System Coherence methodology. Persisted snapshots include it so upgrades invalidate stale assumptions. |
 | `status` | `complete`, `partial`, `blocked`, `stale`, or `invalid`. |
 | `source_revision` | Revision or `WORKTREE` snapshot used. |
 | `created_at` | UTC ISO-8601 timestamp. |
@@ -26,6 +27,7 @@ Every artifact is a JSON object with these required fields:
 | `uncertainty` | Objects with at least `kind` and `message` when unresolved. |
 | `freshness` | `state`, `checked_at`, and `dependency_fingerprint`; the store derives `deps-<sha256>` fingerprints from input snapshot hashes. |
 | `content` | Structured payload for the artifact type. |
+| `content_hash` | SHA-256 digest of the envelope without this field; required on persisted snapshots. |
 
 The store adds `content_hash`, a SHA-256 digest of the envelope without its own hash field.
 
@@ -37,6 +39,7 @@ Minimal example:
   "schema_version": "1.0",
   "artifact_id": "artifact/capability-map",
   "run_id": "run-example",
+  "methodology_version": "1.2.0",
   "status": "partial",
   "source_revision": "WORKTREE",
   "created_at": "2026-08-30T00:00:00Z",
@@ -45,7 +48,8 @@ Minimal example:
   "evidence_refs": ["ev-example"],
   "uncertainty": [{"kind": "missing-runtime", "message": "The queue consumer was not available."}],
   "freshness": {"state": "current", "checked_at": "2026-08-30T00:00:00Z", "dependency_fingerprint": "WORKTREE"},
-  "content": {"capabilities": []}
+  "content": {"capabilities": []},
+  "content_hash": "<store-generated-sha256>"
 }
 ```
 
@@ -68,8 +72,10 @@ The runtime requires these primary collections/fields; richer fields are added b
 | `coherence-ledger` | `entries` (`capability_id`, `status`) | `capability_id` |
 
 JSON Schema documents are in `schemas/` beside this file. The optional
-standard-library verifier adds semantic checks for collection uniqueness and
-cross-artifact references.
+standard-library verifier adds semantic checks for collection uniqueness,
+strict timestamps, duplicate-key/non-finite JSON rejection, input cycles, and
+cross-artifact references. A persisted snapshot without a matching
+`content_hash` is invalid.
 
 ## Authority and uncertainty
 
@@ -79,7 +85,7 @@ Conflicting sources remain visible as `uncertainty` entries with `kind: conflict
 
 ## Freshness and invalidation
 
-`current` means the artifact was produced against the declared dependency fingerprint. `stale` means a change invalidated the prior verification. `unknown` means freshness cannot be established. Repository evidence uses a source-tree fingerprint so artifact-only commits do not change the source identity. The optional `coherence invalidate` command creates a regression scope at the current source snapshot and marks affected ledger entries `needs-revalidation`; without that command, record the same scope and stale state directly in the target workspace.
+`current` means the artifact was produced against the declared dependency fingerprint. `stale` means a change invalidated the prior verification. `unknown` means freshness cannot be established. Repository evidence uses a source-tree fingerprint so artifact-only commits do not change the source identity. The optional `coherence invalidate` command creates a regression scope at the current source snapshot and marks affected ledger entries `needs-revalidation`; without that command, record the same scope and stale state directly in the target workspace. Input references must remain acyclic; a missing or untracked change is conservatively routed for repair.
 
 ## Provenance
 
@@ -105,5 +111,7 @@ coherence validate --json /path/to/target
 Do not edit a current snapshot with a text replacement that bypasses the
 protocol. Use an atomic file replacement when native file tools support it;
 otherwise write the complete JSON document and validate it before handing off.
-The verifier's history behavior is an available safety improvement, not a
-required dependency of an installed skill.
+The verifier rejects orphaned temporary files, malformed history snapshots,
+duplicate JSON keys, non-finite numbers, and symlink escapes. Fixture
+evaluation is metadata-only by default; executing repository fixtures requires
+an explicit trusted-checkout opt-in.

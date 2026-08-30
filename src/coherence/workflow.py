@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .evidence import capture
-from .models import ARTIFACT_TYPES
+from .models import ARTIFACT_TYPES, METHODOLOGY_VERSION
 from .store import ArtifactStore
 
 
@@ -152,6 +152,9 @@ def _needs_repair(
     store: ArtifactStore,
 ) -> str | None:
     status = value.get("status")
+    methodology_version = value.get("methodology_version")
+    if methodology_version != METHODOLOGY_VERSION:
+        return "artifact methodology version is not current"
     if status == "blocked":
         return "required artifact is blocked"
     if status == "invalid":

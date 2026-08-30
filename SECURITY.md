@@ -8,10 +8,11 @@ contain untrusted text. The installed skills use the target repository's
 `.coherence/` directory as durable state.
 
 The verifier treats the target repository as data for capture, validation, and
-routing. It does not execute target source during those operations. The
-evaluation command intentionally executes the small example fixtures, and
-`release-check` intentionally invokes the packaging backend and installs built
-artifacts; run those commands only in a checkout you trust.
+routing. It does not execute target source during those operations. The default
+evaluation command validates metadata only; `--trusted-fixtures` explicitly
+executes the small example fixtures. `release-check` invokes the packaging
+backend, scans public Git history, and installs built artifacts. Run those
+execution paths only in a checkout you trust.
 
 ## Trust boundaries
 
@@ -22,6 +23,11 @@ artifacts; run those commands only in a checkout you trust.
   path traversal and symlink escapes are errors.
 - Release archives are inspected for unsafe paths, links, generated caches,
   high-confidence secret patterns, and absolute developer-machine paths.
+- Public Git refs are scanned for non-public commit-email identities and the
+  same high-confidence secret/path patterns. Findings are redacted to
+  commit IDs, domains, paths, and pattern names.
+- Scenario modules must live below `examples/`; importing them requires the
+  explicit trusted-fixtures opt-in.
 - Reports can contain repository-derived text. Treat them as untrusted data and
   review before publishing them or feeding them to another automated system.
 
@@ -44,4 +50,6 @@ release note, and disclosure timeline appropriate to the impact.
 
 Every release should pass `coherence release-check`, the full test/evaluation
 suite, and a clean-clone skill installation. Never commit `.coherence/`, build
-outputs, credentials, or machine-local paths.
+outputs, credentials, machine-local paths, or personal commit addresses. Use a
+GitHub no-reply address for public history; a history rewrite cannot remove
+copies already retained by remote caches or downstream clones.

@@ -1,4 +1,7 @@
 from pathlib import Path
+import io
+import subprocess
+import tarfile
 import tempfile
 import unittest
 import zipfile
@@ -6,6 +9,8 @@ import zipfile
 from coherence import __version__
 from coherence.release import (
     _inspect_skill_archive,
+    _inspect_sdist,
+    _history_privacy,
     _safe_archive_name,
     _write_skill_archive,
     release_check,
@@ -36,6 +41,41 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertFalse(_safe_archive_name("../outside.txt"))
         self.assertFalse(_safe_archive_name("C:\\outside.txt"))
         self.assertFalse(_safe_archive_name("/outside.txt"))
+
+    def test_sdist_boundary_rejects_development_surfaces(self):
+        with tempfile.TemporaryDirectory(prefix="coherence-sdist-") as directory:
+            archive_path = Path(directory) / "system_coherence-1.2.0.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as archive:
+                for name, data in (
+                    ("system_coherence-1.2.0/", b""),
+                    ("system_coherence-1.2.0/src/", b""),
+                    ("system_coherence-1.2.0/src/coherence/", b""),
+                    ("system_coherence-1.2.0/PKG-INFO", b"Version: 1.2.0\n"),
+                    ("system_coherence-1.2.0/tests/test_secret.py", b"test"),
+                ):
+                    info = tarfile.TarInfo(name)
+                    info.size = len(data)
+                    archive.addfile(info, io.BytesIO(data) if data else None)
+
+            errors = _inspect_sdist(archive_path, "1.2.0")
+
+        self.assertTrue(any("development file" in error for error in errors))
+
+    def test_history_privacy_finding_redacts_the_address(self):
+        with tempfile.TemporaryDirectory(prefix="coherence-history-") as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test.person@gmail.com"], cwd=root, check=True)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
+
+            findings, message = _history_privacy(root)
+
+        self.assertIn("scanned", message)
+        self.assertTrue(any(item["kind"] == "private-commit-email" for item in findings))
+        self.assertFalse(any("@gmail.com" in str(item) for item in findings))
 
     def test_no_build_mode_reports_missing_python_artifacts_explicitly(self):
         with tempfile.TemporaryDirectory(prefix="coherence-release-") as directory:

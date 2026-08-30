@@ -1,0 +1,39 @@
+name: Protocol issue
+description: Report an artifact envelope, route, freshness, or resumption problem.
+title: "[Protocol]: "
+labels:
+  - protocol
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Redact evidence contents, secrets, and machine-local paths. Prefer IDs and hashes.
+  - type: textarea
+    id: transition
+    attributes:
+      label: Expected transition
+      description: Describe the artifact state, route, or recovery behavior that should occur.
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Redacted artifacts
+      description: Include artifact types, statuses, source revisions, and validation output.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Give a minimal safe command sequence or test case.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true

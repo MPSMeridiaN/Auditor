@@ -7,9 +7,9 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-import tomllib
 from typing import Any
 
+from .release import _project_version
 from .skills import PUBLIC_SKILLS, validate_skill_tree
 from .store import ArtifactStore, Workspace
 
@@ -60,14 +60,11 @@ def run_doctor(root: Path, *, strict: bool = False) -> dict[str, Any]:
         f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
     )
 
-    pyproject = root / "pyproject.toml"
-    project_version: str | None = None
-    try:
-        with pyproject.open("rb") as handle:
-            project_version = tomllib.load(handle)["project"]["version"]
+    project_version, project_error = _project_version(root)
+    if project_error is None:
         _check(checks, "project-metadata", "pass", f"version {project_version}")
-    except (KeyError, OSError, tomllib.TOMLDecodeError, TypeError) as exc:
-        _check(checks, "project-metadata", "fail", f"invalid pyproject metadata: {exc}")
+    else:
+        _check(checks, "project-metadata", "fail", project_error)
 
     try:
         from . import __version__

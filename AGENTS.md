@@ -61,7 +61,7 @@ delete or replace the target project's `.coherence/` workspace when updating
 the installed methodology.
 
 Before publishing a source change, run the optional verifier's complete local
-gate: `coherence validate-skills --json .`, `coherence eval --json .`,
+gate: `coherence validate-skills --json .`, `coherence eval --trusted-fixtures --json .`,
 `coherence doctor --strict --json .`, and `coherence release-check --json .`.
 Release assets must come from the passing GitHub release workflow; do not
 commit generated `.coherence/`, build, dist, or report directories.

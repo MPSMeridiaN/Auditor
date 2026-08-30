@@ -119,12 +119,17 @@ def _git(root: Path, *arguments: str) -> str | None:
     return result.stdout.rstrip()
 
 
-def _source_revision(root: Path, files: list[dict[str, Any]]) -> str:
+def _source_revision(
+    root: Path, files: list[dict[str, Any]], unsafe_paths: list[str] | None = None
+) -> str:
+    unsafe_paths = unsafe_paths or []
+    revision_lines = [
+        f"{item['path']}\0{item['sha256']}"
+        for item in files
+    ]
+    revision_lines.extend(f"unsafe\0{path}" for path in unsafe_paths)
     fingerprint = sha256(
-        "\n".join(
-            f"{item['path']}\0{item['sha256']}"
-            for item in files
-        ).encode("utf-8")
+        "\n".join(revision_lines).encode("utf-8")
     ).hexdigest()[:16]
     if _git(root, "rev-parse", "HEAD"):
         return f"TREE-{fingerprint}"
@@ -158,6 +163,33 @@ def _iter_files(root: Path):
             if _is_excluded_file(filename) or path.is_symlink() or not path.is_file():
                 continue
             yield path
+
+
+def _iter_unsafe_paths(root: Path) -> list[str]:
+    """Return skipped symlink paths so capture cannot hide unsafe evidence."""
+
+    unsafe: list[str] = []
+    for current, directories, filenames in os.walk(
+        root, topdown=True, followlinks=False
+    ):
+        current_path = Path(current)
+        kept_directories: list[str] = []
+        for name in directories:
+            path = current_path / name
+            if _is_excluded_directory(name):
+                continue
+            if path.is_symlink():
+                unsafe.append(path.relative_to(root).as_posix())
+                continue
+            kept_directories.append(name)
+        directories[:] = kept_directories
+        for filename in filenames:
+            path = current_path / filename
+            if _is_excluded_file(filename):
+                continue
+            if path.is_symlink():
+                unsafe.append(path.relative_to(root).as_posix())
+    return sorted(set(unsafe))
 
 
 def _is_excluded_directory(name: str) -> bool:
@@ -201,21 +233,29 @@ def capture(root: Path) -> dict[str, Any]:
                 "language": _language(path),
             }
         )
+    unsafe_paths = _iter_unsafe_paths(root)
     working_tree = _working_tree_state(root)
-    revision = _source_revision(root, files)
+    revision = _source_revision(root, files, unsafe_paths)
 
     return {
         "artifact_type": "repository-evidence",
         "schema_version": "1.0",
         "artifact_id": "artifact/repository-evidence",
         "run_id": stable_id("run", f"evidence:{root}:{captured_at}"),
-        "status": "complete",
+        "status": "partial" if unsafe_paths else "complete",
         "source_revision": revision,
         "created_at": captured_at,
         "producer": {"skill": "system-coherence", "agent": "coherence-cli"},
         "inputs": [],
         "evidence_refs": [],
-        "uncertainty": [],
+        "uncertainty": [
+            {
+                "kind": "unsafe-path",
+                "message": "Symlinked repository paths were skipped from evidence capture.",
+                "path": path,
+            }
+            for path in unsafe_paths
+        ],
         "freshness": {
             "state": "current",
             "checked_at": captured_at,
@@ -226,6 +266,7 @@ def capture(root: Path) -> dict[str, Any]:
             "source_revision": revision,
             "working_tree": working_tree,
             "captured_at": captured_at,
+            "unsafe_paths": unsafe_paths,
             "files": files,
         },
     }

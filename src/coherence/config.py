@@ -9,7 +9,7 @@ import tempfile
 from typing import Any
 import uuid
 
-from .models import stable_id, utc_now
+from .models import METHODOLOGY_VERSION, stable_id, utc_now
 from .store import Workspace
 
 
@@ -17,8 +17,13 @@ PROTOCOL_VERSION = "1.0"
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
+    if path.is_symlink():
+        raise ValueError(f"refusing to replace symlink: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    payload = (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False)
+        + "\n"
+    )
     fd, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
     )
@@ -42,6 +47,7 @@ def initialize_workspace(root: Path) -> Workspace:
             config_path,
             {
                 "protocol_version": PROTOCOL_VERSION,
+                "methodology_version": METHODOLOGY_VERSION,
                 "root": ".",
                 "artifact_directory": ".coherence/artifacts",
                 "created_at": utc_now(),
@@ -51,6 +57,7 @@ def initialize_workspace(root: Path) -> Workspace:
         workspace.coherence_dir / "session.json",
         {
             "protocol_version": PROTOCOL_VERSION,
+            "methodology_version": METHODOLOGY_VERSION,
             "run_id": stable_id("run", str(uuid.uuid4())),
             "started_at": utc_now(),
             "status": "active",

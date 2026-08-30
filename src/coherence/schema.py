@@ -8,6 +8,7 @@ CLI remains usable in a clean checkout.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 import re
 from typing import Any
 
@@ -135,6 +136,18 @@ def _is_non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def _is_timestamp(value: Any) -> bool:
+    """Return whether *value* is an ISO-8601 timestamp with a timezone."""
+
+    if not _is_non_empty_string(value):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None
+
+
 def _append_required(errors: list[str], value: dict[str, Any], field: str) -> None:
     if field not in value:
         errors.append(f"missing required field: {field}")
@@ -143,6 +156,43 @@ def _append_required(errors: list[str], value: dict[str, Any], field: str) -> No
 def _validate_string_list(errors: list[str], value: Any, field: str) -> None:
     if not isinstance(value, list) or any(not _is_non_empty_string(item) for item in value):
         errors.append(f"{field} must be a list of non-empty strings")
+
+
+def _validate_unique_string_list(
+    errors: list[str], value: Any, field: str
+) -> None:
+    if not isinstance(value, list):
+        return
+    if all(isinstance(item, str) for item in value) and len(value) != len(set(value)):
+        errors.append(f"{field} must not contain duplicate values")
+
+
+def _validate_required_content_types(
+    errors: list[str], content: dict[str, Any], artifact_type: str
+) -> None:
+    """Validate the protocol-critical payload types before relation checks."""
+
+    collection_names = {
+        "repository-evidence": ("files",),
+        "capability-map": ("capabilities",),
+        "behavioral-contracts": ("contracts",),
+        "state-model": ("states", "transitions"),
+        "implementation-traces": ("traces",),
+        "audit-findings": ("findings",),
+        "intervention-plan": ("actions",),
+        "revalidation-results": ("validations",),
+        "coherence-ledger": ("entries",),
+    }
+    for field in collection_names.get(artifact_type, ()):
+        if field in content and not isinstance(content[field], list):
+            errors.append(f"content.{field} must be a list")
+    if artifact_type == "system-model" and "system_id" in content:
+        if not _is_non_empty_string(content["system_id"]):
+            errors.append("content.system_id must be a non-empty string")
+    if artifact_type == "regression-scope":
+        for field in ("changed_paths", "impacted_capability_ids"):
+            if field in content and not isinstance(content[field], list):
+                errors.append(f"content.{field} must be a list")
 
 
 def _validate_domain_collection(
@@ -328,8 +378,13 @@ def validate_envelope(
         )
     if not _is_non_empty_string(value.get("source_revision")):
         errors.append("source_revision must be a non-empty string")
-    if not _is_non_empty_string(value.get("created_at")):
-        errors.append("created_at must be a non-empty string")
+    if not _is_timestamp(value.get("created_at")):
+        errors.append("created_at must be an ISO-8601 timestamp with timezone")
+
+    if "methodology_version" in value and not _is_non_empty_string(
+        value.get("methodology_version")
+    ):
+        errors.append("methodology_version must be a non-empty string")
 
     producer = value.get("producer")
     if not isinstance(producer, dict):
@@ -340,6 +395,7 @@ def validate_envelope(
                 errors.append(f"producer.{field} must be a non-empty string")
 
     _validate_string_list(errors, value.get("inputs"), "inputs")
+    _validate_unique_string_list(errors, value.get("inputs"), "inputs")
     for artifact in value.get("inputs", []) if isinstance(value.get("inputs"), list) else []:
         if not _ARTIFACT_ID_PATTERN.fullmatch(artifact):
             errors.append(f"input is not an artifact ID: {artifact}")
@@ -347,6 +403,7 @@ def validate_envelope(
             errors.append("artifact cannot list itself as an input")
 
     _validate_string_list(errors, value.get("evidence_refs"), "evidence_refs")
+    _validate_unique_string_list(errors, value.get("evidence_refs"), "evidence_refs")
 
     uncertainty = value.get("uncertainty")
     if not isinstance(uncertainty, list):
@@ -369,8 +426,10 @@ def validate_envelope(
     else:
         if freshness.get("state") not in FRESHNESS_STATES:
             errors.append("freshness.state must be current, stale, or unknown")
-        if not _is_non_empty_string(freshness.get("checked_at")):
-            errors.append("freshness.checked_at must be a non-empty string")
+        if not _is_timestamp(freshness.get("checked_at")):
+            errors.append(
+                "freshness.checked_at must be an ISO-8601 timestamp with timezone"
+            )
         if not _is_non_empty_string(freshness.get("dependency_fingerprint")):
             errors.append("freshness.dependency_fingerprint must be a non-empty string")
 
@@ -380,6 +439,7 @@ def validate_envelope(
     elif artifact_type in REQUIRED_CONTENT_FIELDS:
         for field in REQUIRED_CONTENT_FIELDS[artifact_type]:
             _append_required(errors, content, field)
+        _validate_required_content_types(errors, content, artifact_type)
         _validate_domain_collection(errors, content, artifact_type)
         _validate_relation_lists(errors, content, artifact_type)
         if artifact_type == "system-model":

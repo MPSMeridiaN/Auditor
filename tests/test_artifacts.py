@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import unittest
 
-from coherence.models import ARTIFACT_TYPES, utc_now
+from coherence.models import ARTIFACT_TYPES, METHODOLOGY_VERSION, utc_now
 from coherence.schema import validate_envelope
 from coherence.store import ArtifactStore, Workspace, content_hash
 
@@ -13,6 +13,7 @@ def valid_envelope(artifact_type="system-model", content=None, **overrides):
         "schema_version": "1.0",
         "artifact_id": f"artifact/{artifact_type}",
         "run_id": "run-test",
+        "methodology_version": METHODOLOGY_VERSION,
         "status": "complete",
         "source_revision": "WORKTREE",
         "created_at": "2026-08-30T00:00:00Z",
@@ -253,6 +254,71 @@ class ArtifactStoreTests(unittest.TestCase):
 
         self.assertIn("system-model", errors)
         self.assertIn("missing required field: schema_version", errors["system-model"])
+
+    def test_validate_all_rejects_duplicate_json_keys_and_non_finite_numbers(self):
+        root = Path(self._tmpdir())
+        workspace = Workspace(root)
+        workspace.ensure()
+        (workspace.artifacts_dir / "system-model.json").write_text(
+            '{"artifact_type":"system-model","artifact_type":"system-model"}',
+            encoding="utf-8",
+        )
+        (workspace.artifacts_dir / "capability-map.json").write_text(
+            '{"value":NaN}', encoding="utf-8"
+        )
+
+        errors = ArtifactStore(workspace).validate_all()
+
+        self.assertTrue(any("duplicate JSON object key" in error for error in errors["system-model"]))
+        self.assertTrue(any("non-finite JSON number" in error for error in errors["capability-map"]))
+
+    def test_validate_all_reports_orphaned_temporary_and_malformed_history_entries(self):
+        root = Path(self._tmpdir())
+        workspace = Workspace(root)
+        workspace.ensure()
+        (workspace.tmp_dir / "interrupted-write.tmp").write_text("partial", encoding="utf-8")
+        history = workspace.history_dir / "system-model"
+        history.mkdir(parents=True)
+        (history / "not-a-hash.json").write_text("{}", encoding="utf-8")
+
+        errors = ArtifactStore(workspace).validate_all()
+
+        self.assertIn("tmp/interrupted-write.tmp", errors)
+        self.assertIn("history/system-model/not-a-hash.json", errors)
+
+    def test_validate_all_rejects_artifact_input_cycles(self):
+        root = Path(self._tmpdir())
+        workspace = Workspace(root)
+        store = ArtifactStore(workspace)
+        first = valid_envelope(
+            "system-model",
+            {"system_id": "sys-demo"},
+            inputs=["artifact/capability-map"],
+        )
+        second = valid_envelope(
+            "capability-map",
+            {"capabilities": [{"capability_id": "cap-demo"}]},
+            inputs=["artifact/system-model"],
+        )
+        first["content_hash"] = content_hash(first)
+        second["content_hash"] = content_hash(second)
+        workspace.ensure()
+        (workspace.artifacts_dir / "system-model.json").write_text(
+            json.dumps(first), encoding="utf-8"
+        )
+        (workspace.artifacts_dir / "capability-map.json").write_text(
+            json.dumps(second), encoding="utf-8"
+        )
+
+        errors = store.validate_all()
+
+        self.assertTrue(
+            any(
+                "artifact input cycle detected" in error
+                for messages in errors.values()
+                for error in messages
+            )
+        )
 
     def test_validate_all_reports_a_tampered_content_hash(self):
         root = Path(self._tmpdir())

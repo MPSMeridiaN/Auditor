@@ -5,13 +5,19 @@ include LICENSE
 include README.md
 include SECURITY.md
 include pyproject.toml
+include setup.py
+include MANIFEST.in
 recursive-include src/coherence *.py
-recursive-include tests *.py
-recursive-include examples *.md *.py *.json
-recursive-include docs *.md *.svg *.webp
-recursive-include skills *.md *.json
+
+# Tests, fixtures, documentation sources, and Agent Skills are development
+# surfaces with their own distribution path. They are intentionally not part
+# of the PyPI source archive; the skill archive is built separately.
 prune .agents
 prune .coherence
+prune docs
+prune examples
+prune skills
+prune tests
 prune build
 prune dist
 prune release

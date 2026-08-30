@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "system-coherence"
-version = "1.1.0"
+dynamic = ["version"]
 description = "An artifact-backed Agent Skill framework for behavioral coherence"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,10 +13,14 @@ license-files = ["LICENSE"]
 authors = [{ name = "System Coherence contributors" }]
 dependencies = []
 optional-dependencies.dev = ["build>=1.2.2"]
+keywords = ["agent-skills", "software-architecture", "software-testing", "coherence"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Software Development :: Quality Assurance",
 ]
@@ -24,6 +28,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/MPSMeridiaN/Auditor"
 Repository = "https://github.com/MPSMeridiaN/Auditor"
+Documentation = "https://github.com/MPSMeridiaN/Auditor/tree/main/docs"
 Issues = "https://github.com/MPSMeridiaN/Auditor/issues"
 Changelog = "https://github.com/MPSMeridiaN/Auditor/blob/main/CHANGELOG.md"
 Security = "https://github.com/MPSMeridiaN/Auditor/blob/main/SECURITY.md"
@@ -33,3 +38,6 @@ coherence = "coherence.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "coherence._version.__version__"}

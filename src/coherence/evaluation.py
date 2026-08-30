@@ -20,6 +20,33 @@ REQUIRED_SCENARIO_FIELDS = (
     "negative_control",
     "evidence_paths",
 )
+SUPPORTED_PROBES = frozenset({"delete_cache", "failed_side_effect", "atomic_rename"})
+EXPECTED_CLASSES = {
+    "delete_cache": "WebCache",
+    "failed_side_effect": "Worker",
+    "atomic_rename": "CleanLedger",
+}
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        value[key] = item
+    return value
+
+
+def _reject_non_finite_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number is not allowed: {value}")
+
+
+def _read_scenarios(path: Path) -> Any:
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_keys,
+        parse_constant=_reject_non_finite_constant,
+    )
 
 
 def _safe_path(root: Path, relative_path: str) -> Path | None:
@@ -37,6 +64,19 @@ def _safe_path(root: Path, relative_path: str) -> Path | None:
     except ValueError:
         return None
     return resolved
+
+
+def _safe_fixture_path(root: Path, relative_path: str) -> Path | None:
+    """Resolve a fixture only inside the repository's declared examples tree."""
+
+    candidate = _safe_path(root, relative_path)
+    if candidate is None:
+        return None
+    try:
+        candidate.relative_to(root / "examples")
+    except ValueError:
+        return None
+    return candidate
 
 
 def validate_scenarios(root: Path, scenarios: Any) -> list[str]:
@@ -65,6 +105,15 @@ def validate_scenarios(root: Path, scenarios: Any) -> list[str]:
         for field in ("architecture", "module", "class", "probe"):
             if not isinstance(scenario.get(field), str) or not scenario[field].strip():
                 errors.append(f"{prefix}.{field} must be a non-empty string")
+        probe = scenario.get("probe")
+        if probe not in SUPPORTED_PROBES:
+            errors.append(
+                f"{prefix}.probe must be one of " + ", ".join(sorted(SUPPORTED_PROBES))
+            )
+        elif scenario.get("class") != EXPECTED_CLASSES[probe]:
+            errors.append(
+                f"{prefix}.class must be {EXPECTED_CLASSES[probe]} for probe {probe}"
+            )
         capability_ids = scenario.get("capability_ids")
         if (
             not isinstance(capability_ids, list)
@@ -84,9 +133,11 @@ def validate_scenarios(root: Path, scenarios: Any) -> list[str]:
                     errors.append(f"{prefix} evidence path does not exist: {relative_path}")
         module_path = scenario.get("module")
         if isinstance(module_path, str):
-            resolved = _safe_path(root, module_path)
+            resolved = _safe_fixture_path(root, module_path)
             if resolved is None or not resolved.is_file():
-                errors.append(f"{prefix} module path does not exist: {module_path}")
+                errors.append(
+                    f"{prefix} module path is not a safe examples fixture: {module_path}"
+                )
         if not isinstance(scenario.get("expected_finding"), bool):
             errors.append(f"{prefix}.expected_finding must be a boolean")
         if not isinstance(scenario.get("negative_control"), bool):
@@ -104,9 +155,9 @@ def validate_scenarios(root: Path, scenarios: Any) -> list[str]:
 
 
 def _load_module(root: Path, relative_path: str, module_name: str):
-    path = _safe_path(root, relative_path)
+    path = _safe_fixture_path(root, relative_path)
     if path is None:
-        raise ValueError(f"unsafe fixture module path: {relative_path}")
+        raise ValueError(f"unsafe examples fixture module path: {relative_path}")
     spec = spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"could not load fixture module: {path}")
@@ -115,9 +166,15 @@ def _load_module(root: Path, relative_path: str, module_name: str):
     return module
 
 
-def _probe(module: Any, probe_name: str) -> tuple[bool, dict[str, Any]]:
+def _probe(module: Any, class_name: str, probe_name: str) -> tuple[bool, dict[str, Any]]:
+    expected_class = EXPECTED_CLASSES.get(probe_name)
+    if expected_class != class_name:
+        raise ValueError(f"fixture class {class_name!r} is not allowed for probe {probe_name!r}")
+    fixture_class = getattr(module, class_name, None)
+    if not isinstance(fixture_class, type):
+        raise ValueError(f"fixture class is missing: {class_name}")
     if probe_name == "delete_cache":
-        system = module.WebCache()
+        system = fixture_class()
         system.create("document", "payload")
         system.delete("document")
         observed = system.get("document")
@@ -128,7 +185,7 @@ def _probe(module: Any, probe_name: str) -> tuple[bool, dict[str, Any]]:
             "read_after_delete": observed,
         }
     if probe_name == "failed_side_effect":
-        worker = module.Worker()
+        worker = fixture_class()
         completed = worker.process("job-1", fail_side_effect=True)
         detected = worker.status("job-1") == "completed" and "job-1" not in worker.outputs
         return detected, {
@@ -137,7 +194,7 @@ def _probe(module: Any, probe_name: str) -> tuple[bool, dict[str, Any]]:
             "output_exists": "job-1" in worker.outputs,
         }
     if probe_name == "atomic_rename":
-        ledger = module.CleanLedger()
+        ledger = fixture_class()
         ledger.rename("old", "new")
         stale_alias = ledger.lookup("old") is not None
         detected = stale_alias or ledger.lookup("new") != "present"
@@ -148,15 +205,21 @@ def _probe(module: Any, probe_name: str) -> tuple[bool, dict[str, Any]]:
     raise ValueError(f"unknown evaluation probe: {probe_name}")
 
 
-def run_evaluations(root: Path) -> dict[str, Any]:
-    """Execute all scenarios and return a stable, machine-readable report."""
+def run_evaluations(
+    root: Path, *, execute_fixtures: bool = False
+) -> dict[str, Any]:
+    """Validate scenarios and optionally execute trusted fixture code.
+
+    Repository text and metadata are evidence, not executable authority. The
+    default mode therefore validates scenario metadata without importing any
+    target-repository Python. Callers must explicitly opt into fixture
+    execution for a trusted checkout.
+    """
 
     root = Path(root).resolve()
     try:
-        scenarios = json.loads(
-            (root / "examples" / "scenarios.json").read_text(encoding="utf-8")
-        )
-    except (OSError, json.JSONDecodeError) as exc:
+        scenarios = _read_scenarios(root / "examples" / "scenarios.json")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
         return {
             "scenario_count": 0,
             "passed": 0,
@@ -176,13 +239,41 @@ def run_evaluations(root: Path) -> dict[str, Any]:
             "results": [],
             "validation_errors": metadata_errors,
         }
+    if not execute_fixtures:
+        return {
+            "execution": "skipped",
+            "requires_trusted_fixtures": True,
+            "scenario_count": len(scenarios),
+            "passed": 0,
+            "failed": 0,
+            "findings_detected": [],
+            "results": [
+                {
+                    "scenario_id": scenario["scenario_id"],
+                    "architecture": scenario["architecture"],
+                    "probe": scenario["probe"],
+                    "executed": False,
+                    "status": "not-run",
+                    "expected_finding": scenario["expected_finding"],
+                    "expected_finding_category": scenario.get(
+                        "expected_finding_category"
+                    ),
+                    "capability_ids": scenario["capability_ids"],
+                    "negative_control": scenario["negative_control"],
+                    "evidence_paths": scenario.get("evidence_paths", []),
+                }
+                for scenario in scenarios
+            ],
+            "validation_errors": [],
+        }
+
     results: list[dict[str, Any]] = []
     findings_detected: list[str] = []
     for index, scenario in enumerate(scenarios):
         scenario_id = scenario["scenario_id"]
         try:
             module = _load_module(root, scenario["module"], f"coherence_fixture_{index}")
-            detected, observed = _probe(module, scenario["probe"])
+            detected, observed = _probe(module, scenario["class"], scenario["probe"])
             passed = detected == scenario["expected_finding"]
             error = None
         except Exception as exc:
@@ -197,6 +288,8 @@ def run_evaluations(root: Path) -> dict[str, Any]:
             "architecture": scenario["architecture"],
             "probe": scenario["probe"],
             "passed": passed,
+            "executed": True,
+            "status": "passed" if passed else "failed",
             "finding_detected": detected,
             "expected_finding": scenario["expected_finding"],
             "expected_finding_category": scenario.get("expected_finding_category"),
@@ -209,9 +302,12 @@ def run_evaluations(root: Path) -> dict[str, Any]:
             result["error"] = error
         results.append(result)
     return {
+        "execution": "trusted-fixtures",
+        "requires_trusted_fixtures": False,
         "scenario_count": len(results),
         "passed": sum(1 for result in results if result["passed"]),
         "failed": sum(1 for result in results if not result["passed"]),
         "findings_detected": findings_detected,
         "results": results,
+        "validation_errors": [],
     }

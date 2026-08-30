@@ -34,10 +34,13 @@ jobs:
         run: |
           python - <<'PY'
           import os
-          import tomllib
+          from pathlib import Path
 
-          with open("pyproject.toml", "rb") as handle:
-              version = tomllib.load(handle)["project"]["version"]
+          from coherence.release import _project_version
+
+          version, error = _project_version(Path("."))
+          if error:
+              raise SystemExit(error)
           expected = os.environ["RELEASE_TAG"].removeprefix("v")
           if version != expected:
               raise SystemExit(f"tag {expected!r} does not match project version {version!r}")
@@ -47,7 +50,7 @@ jobs:
       - name: Validate skills and fixture evaluations
         run: |
           coherence validate-skills --json .
-          coherence eval --json .
+          coherence eval --trusted-fixtures --json .
       - name: Generate and validate dogfood route
         run: |
           python scripts/dogfood.py

@@ -12,6 +12,7 @@ from . import __version__
 from .config import initialize_workspace
 from .doctor import run_doctor
 from .evidence import capture
+from .models import ARTIFACT_TYPES
 from .release import release_check
 from .skills import validate_skill_tree
 from .store import ArtifactStore, Workspace
@@ -92,6 +93,11 @@ def _parser() -> argparse.ArgumentParser:
 
     evaluation = commands.add_parser("eval", help="run executable example evaluations")
     evaluation.add_argument("root", nargs="?", default=".")
+    evaluation.add_argument(
+        "--trusted-fixtures",
+        action="store_true",
+        help="explicitly allow execution of Python fixtures in the target checkout",
+    )
     evaluation.add_argument("--json", action="store_true", dest="as_json")
 
     release_check = commands.add_parser(
@@ -159,30 +165,58 @@ def _route(store: ArtifactStore) -> dict[str, Any]:
 
 def _status(root: Path) -> dict[str, Any]:
     store = ArtifactStore(Workspace(root))
-    artifacts = store.read_all()
+    workspace = Workspace(root)
+    validation_errors = store.validate_all()
+    artifacts: dict[str, dict[str, Any]] = {}
+    for artifact_type in ARTIFACT_TYPES:
+        path = workspace.artifacts_dir / f"{artifact_type}.json"
+        if not path.exists() and not path.is_symlink():
+            continue
+        try:
+            value = store.read(artifact_type)
+        except ValueError as exc:
+            artifacts[artifact_type] = {
+                "status": "invalid",
+                "read_error": str(exc),
+            }
+            continue
+        if value is not None:
+            artifacts[artifact_type] = value
     return {
-        "workspace": str(Workspace(root).root),
+        "workspace": str(workspace.root),
         "artifact_count": len(artifacts),
         "artifacts": {
             artifact_type: {
-                "status": value.get("status"),
+                "status": "invalid"
+                if artifact_type in validation_errors
+                else value.get("status"),
                 "source_revision": value.get("source_revision"),
                 "content_hash": value.get("content_hash"),
+                **(
+                    {"read_error": value["read_error"]}
+                    if "read_error" in value
+                    else {}
+                ),
             }
             for artifact_type, value in artifacts.items()
         },
-        "validation_errors": store.validate_all(),
+        "validation_errors": validation_errors,
         "next": _route(store),
     }
 
 
 def _explain(store: ArtifactStore) -> dict[str, Any]:
     route = _route(store)
-    artifacts = store.read_all()
+    validation_errors = store.validate_all()
+    try:
+        artifacts = store.read_all()
+    except ValueError:
+        artifacts = {}
     statuses = {
         artifact_type: value.get("status")
         for artifact_type, value in artifacts.items()
     }
+    statuses.update({artifact_type: "invalid" for artifact_type in validation_errors})
     skill = route.get("skill", "system-coherence")
     if route.get("stage") == "complete":
         next_step = "No specialist stage is required; the current ledger is complete."
@@ -191,6 +225,7 @@ def _explain(store: ArtifactStore) -> dict[str, Any]:
     return {
         "route": route,
         "artifact_statuses": statuses,
+        "validation_errors": validation_errors,
         "next_step": next_step,
     }
 
@@ -257,8 +292,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "eval":
             from .evaluation import run_evaluations
 
-            report = run_evaluations(root)
+            report = run_evaluations(root, execute_fixtures=args.trusted_fixtures)
             _emit(report, args.as_json)
+            if report.get("execution") == "skipped":
+                return 2
             return 1 if report["failed"] else 0
         if args.command == "release-check":
             report = release_check(

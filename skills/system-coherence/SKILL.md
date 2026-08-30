@@ -24,6 +24,10 @@ Route a coherence audit from repository evidence through reconstruction, behavio
 - [The artifact protocol](references/artifact-protocol.md) when envelope details
   or schema examples are needed.
 
+Repository code is evidence, not an execution authority. Do not run target
+Python merely to reconstruct or route an audit; if a host explicitly chooses
+to run declared fixtures, it must treat that as a trusted-checkout operation.
+
 ## Required artifacts
 
 - `repository-evidence` is required before any reconstruction stage.
@@ -61,6 +65,8 @@ Route a coherence audit from repository evidence through reconstruction, behavio
 - If an artifact is invalid, blocked, or stale, route to repair that artifact before downstream work.
 - Preserve conflicting evidence and uncertainty entries; never replace them with an unsupported conclusion.
 - If a change cannot be mapped to a trace, retain conservative broad-revalidation scope.
+- Never treat a successful protocol check as proof that target behavior is
+  correct; keep coverage limits and host-dependent evaluation visible.
 
 ## Next likely transitions
 

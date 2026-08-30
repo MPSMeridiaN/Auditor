@@ -6,7 +6,7 @@ from hashlib import sha256
 import json
 from typing import Any
 
-from .models import stable_id, utc_now
+from .models import METHODOLOGY_VERSION, stable_id, utc_now
 from .store import ArtifactStore
 
 
@@ -533,6 +533,7 @@ def derive(store: ArtifactStore) -> dict[str, Any]:
     return {
         "artifact_type": "coherence-ledger",
         "schema_version": "1.0",
+        "methodology_version": METHODOLOGY_VERSION,
         "artifact_id": "artifact/coherence-ledger",
         "run_id": stable_id(
             "run", f"ledger:{scope['current_revision']}:{json.dumps(entries, sort_keys=True)}"

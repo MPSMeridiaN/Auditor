@@ -4,7 +4,14 @@ The repository uses two complementary evaluation layers.
 
 ## Deterministic fixture evaluations
 
-`coherence eval .` executes real Python fixtures and compares observable outcomes with scenario expectations. Each scenario declares its capability IDs, whether it is a negative control, and repository-relative evidence paths; `skills/system-coherence/references/schemas/evaluation-scenarios.schema.json` documents that metadata shape. The current suite includes:
+`coherence eval .` validates scenario metadata without importing repository
+Python. `coherence eval --trusted-fixtures .` explicitly executes the declared
+example fixtures and compares observable outcomes with scenario expectations.
+Use the trusted mode only for a checkout whose code and build configuration are
+trusted. Each scenario declares its capability IDs, whether it is a negative
+control, and repository-relative evidence paths;
+`skills/system-coherence/references/schemas/evaluation-scenarios.schema.json`
+documents that metadata shape. The current suite includes:
 
 | Scenario | Architecture | Defect exercised | Expected result |
 | --- | --- | --- | --- |
@@ -12,7 +19,9 @@ The repository uses two complementary evaluation layers.
 | `worker-partial-completion` | Worker/service | Completion is persisted before the side effect | Detect `partial-commit` |
 | `clean-cli-rename` | CLI | Rename removes old identity and writes the new one | No finding (negative control) |
 
-The probes verify behavior, not source strings. A fresh run reports three passed scenarios, two findings detected, and zero probe failures.
+The probes verify behavior, not source strings. A fresh trusted run reports
+three passed scenarios, two findings detected, and zero probe failures; the
+default metadata-only run reports the scenarios as not run.
 
 These evaluations demonstrate that the artifact framework can carry architecture-specific evidence and distinguish a lifecycle defect from correct behavior. They do not claim broad defect-detection coverage for arbitrary repositories.
 

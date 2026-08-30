@@ -65,9 +65,11 @@ must declare capability IDs, its `negative_control` flag, and repository-
 relative evidence paths that exist. The probe must exercise observable
 behavior, and a negative control should accompany rules that could over-report.
 
-Run the full verifier suite and document both what the evaluation proves and
-what it cannot prove. Host-agent instruction-following tests belong to the
-host integration because the offline verifier cannot simulate every model.
+Run metadata validation by default and execute fixtures only with the explicit
+`coherence eval --trusted-fixtures` flag from a trusted checkout. Document both
+what the evaluation proves and what it cannot prove. Host-agent
+instruction-following tests belong to the host integration because the offline
+verifier cannot simulate every model.
 
 Before proposing a release, run `coherence release-check --json .`. It verifies
 that the public skill tree remains exact, local skill references resolve after

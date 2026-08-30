@@ -8,21 +8,100 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
 from typing import Any
 
-from .models import ARTIFACT_TYPES, utc_now
+from .models import ARTIFACT_TYPES, METHODOLOGY_VERSION, utc_now
 from .schema import validate_envelope
 
 
 MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
+_HISTORY_NAME_PATTERN = re.compile(r"^[0-9a-f]{64}\.json$")
 
 
 def _canonical_json(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
-        "utf-8"
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        value[key] = item
+    return value
+
+
+def _reject_non_finite_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number is not allowed: {value}")
+
+
+def _strict_json_loads(payload: str) -> Any:
+    """Parse JSON without silently accepting duplicate keys or NaN values."""
+
+    return json.loads(
+        payload,
+        object_pairs_hook=_reject_duplicate_keys,
+        parse_constant=_reject_non_finite_constant,
     )
+
+
+def _fsync_directory(directory: Path) -> None:
+    """Best-effort directory durability after an atomic replacement."""
+
+    if os.name == "nt":
+        return
+    try:
+        descriptor = os.open(directory, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    except OSError:
+        pass
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_write_text(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+        _fsync_directory(path.parent)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
+
+
+def _atomic_copy_file(source: Path, target: Path) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+    )
+    os.close(descriptor)
+    try:
+        shutil.copyfile(source, temporary_name)
+        with open(temporary_name, "rb+") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, target)
+        _fsync_directory(target.parent)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
 
 
 def content_hash(envelope: dict[str, Any]) -> str:
@@ -124,8 +203,8 @@ class ArtifactStore:
         if path.stat().st_size > MAX_ARTIFACT_BYTES:
             raise ValueError(f"artifact exceeds {MAX_ARTIFACT_BYTES} bytes: {path}")
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            value = _strict_json_loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
             raise ValueError(f"could not read {path}: {exc}") from exc
         if not isinstance(value, dict):
             raise ValueError(f"artifact file is not an object: {path}")
@@ -133,22 +212,35 @@ class ArtifactStore:
 
     def read_all(self) -> dict[str, dict[str, Any]]:
         artifacts: dict[str, dict[str, Any]] = {}
+        errors: dict[str, str] = {}
         for artifact_type in ARTIFACT_TYPES:
             try:
                 value = self.read(artifact_type)
-            except ValueError:
+            except ValueError as exc:
+                errors[artifact_type] = str(exc)
                 continue
             if value is not None:
                 artifacts[artifact_type] = value
+        if errors:
+            detail = "; ".join(
+                f"{artifact_type}: {message}" for artifact_type, message in errors.items()
+            )
+            raise ValueError(f"could not read all artifacts: {detail}")
         return artifacts
 
     def write(self, envelope: dict[str, Any]) -> Path:
-        errors = validate_envelope(envelope)
+        normalized = copy.deepcopy(envelope)
+        normalized.setdefault("methodology_version", METHODOLOGY_VERSION)
+        errors = validate_envelope(normalized)
+        if normalized.get("methodology_version") != METHODOLOGY_VERSION:
+            errors.append(
+                "methodology_version must match the installed verifier: "
+                + METHODOLOGY_VERSION
+            )
         if errors:
             raise ValueError("invalid artifact: " + "; ".join(errors))
 
         self.workspace.ensure()
-        normalized = copy.deepcopy(envelope)
         artifact_type = normalized["artifact_type"]
         target = self.workspace.artifacts_dir / f"{artifact_type}.json"
         self._safe_path(target)
@@ -217,35 +309,106 @@ class ArtifactStore:
                 previous_hash = previous.get("content_hash") or content_hash(previous)
                 if previous_hash != normalized["content_hash"]:
                     history_dir = self.workspace.history_dir / artifact_type
+                    self._safe_path(history_dir)
                     history_dir.mkdir(parents=True, exist_ok=True)
                     history_target = history_dir / f"{previous_hash}.json"
+                    self._safe_path(history_target)
+                    if history_target.is_symlink():
+                        raise ValueError(f"refusing to replace symlink: {history_target}")
                     if not history_target.exists():
-                        shutil.copyfile(target, history_target)
+                        _atomic_copy_file(target, history_target)
 
         payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-        fd, temporary_name = tempfile.mkstemp(
-            prefix=f".{artifact_type}.", suffix=".tmp", dir=self.workspace.artifacts_dir
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary_name, target)
-        finally:
-            if os.path.exists(temporary_name):
-                os.unlink(temporary_name)
+        _atomic_write_text(target, payload)
         return target
+
+    def _artifact_directory_errors(self) -> dict[str, list[str]]:
+        errors: dict[str, list[str]] = {}
+        artifacts_dir = self.workspace.artifacts_dir
+        if not artifacts_dir.exists():
+            return errors
+        if artifacts_dir.is_symlink() or not artifacts_dir.is_dir():
+            return {"artifacts": ["artifact directory must be a real directory"]}
+        expected = {f"{artifact_type}.json" for artifact_type in ARTIFACT_TYPES}
+        for path in artifacts_dir.iterdir():
+            if path.name in expected and path.is_file() and not path.is_symlink():
+                continue
+            if path.is_symlink():
+                message = "symlink is not allowed"
+            elif path.is_dir():
+                message = "directory is not allowed"
+            elif path.name not in expected:
+                message = "unknown artifact type or temporary artifact file"
+            else:
+                message = "artifact snapshot must be a regular file"
+            key = path.stem if path.suffix.lower() == ".json" else path.name
+            errors.setdefault(key, []).append(message)
+        return errors
+
+    def _history_errors(self) -> dict[str, list[str]]:
+        errors: dict[str, list[str]] = {}
+        history_root = self.workspace.history_dir
+        if not history_root.exists():
+            return errors
+        if history_root.is_symlink() or not history_root.is_dir():
+            return {"history": ["history directory must be a real directory"]}
+        for directory in history_root.iterdir():
+            key = f"history/{directory.name}"
+            if directory.is_symlink() or not directory.is_dir():
+                errors[key] = ["history entry must be a real directory"]
+                continue
+            if directory.name not in ARTIFACT_TYPES:
+                errors[key] = ["unknown artifact history type"]
+                continue
+            for path in directory.iterdir():
+                path_key = f"{key}/{path.name}"
+                if path.is_symlink() or not path.is_file():
+                    errors[path_key] = ["history snapshot must be a regular file"]
+                    continue
+                if not _HISTORY_NAME_PATTERN.fullmatch(path.name):
+                    errors[path_key] = ["history snapshot name must be a SHA-256 hash"]
+                    continue
+                try:
+                    if path.stat().st_size > MAX_ARTIFACT_BYTES:
+                        raise ValueError(f"artifact exceeds {MAX_ARTIFACT_BYTES} bytes")
+                    value = _strict_json_loads(path.read_text(encoding="utf-8"))
+                except (OSError, ValueError) as exc:
+                    errors[path_key] = [f"could not parse history snapshot: {exc}"]
+                    continue
+                validation_errors = validate_envelope(
+                    value, expected_type=directory.name
+                )
+                if validation_errors:
+                    errors[path_key] = validation_errors
+                    continue
+                declared_hash = value.get("content_hash")
+                expected_hash = content_hash(value)
+                if declared_hash != expected_hash:
+                    errors[path_key] = ["history snapshot content_hash does not match"]
+                elif path.stem != expected_hash:
+                    errors[path_key] = ["history filename does not match content_hash"]
+        return errors
+
+    def _temporary_workspace_errors(self) -> dict[str, list[str]]:
+        errors: dict[str, list[str]] = {}
+        temporary_root = self.workspace.tmp_dir
+        if not temporary_root.exists():
+            return errors
+        if temporary_root.is_symlink() or not temporary_root.is_dir():
+            return {"tmp": ["temporary workspace must be a real directory"]}
+        for path in temporary_root.rglob("*"):
+            relative = path.relative_to(self.workspace.coherence_dir).as_posix()
+            errors[relative] = [
+                "orphaned temporary workspace entry; inspect interrupted write"
+            ]
+        return errors
 
     def validate_all(self) -> dict[str, list[str]]:
         errors_by_type: dict[str, list[str]] = {}
         artifacts: dict[str, dict[str, Any]] = {}
-        if self.workspace.artifacts_dir.exists():
-            for path in self.workspace.artifacts_dir.glob("*.json"):
-                if path.stem not in ARTIFACT_TYPES:
-                    errors_by_type[path.stem] = [
-                        f"unknown artifact type file: {path.name}"
-                    ]
+        errors_by_type.update(self._artifact_directory_errors())
+        errors_by_type.update(self._history_errors())
+        errors_by_type.update(self._temporary_workspace_errors())
         for artifact_type in ARTIFACT_TYPES:
             path = self.workspace.artifacts_dir / f"{artifact_type}.json"
             if not path.exists():
@@ -256,25 +419,30 @@ class ArtifactStore:
                     raise ValueError(
                         f"artifact exceeds {MAX_ARTIFACT_BYTES} bytes"
                     )
-                value = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                value = _strict_json_loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
                 errors_by_type[artifact_type] = [f"could not parse artifact: {exc}"]
                 continue
             errors = validate_envelope(value, expected_type=artifact_type)
             if errors:
                 errors_by_type[artifact_type] = errors
             elif isinstance(value, dict):
-                declared_hash = value.get("content_hash")
-                if declared_hash is None:
+                if value.get("methodology_version") != METHODOLOGY_VERSION:
                     errors_by_type[artifact_type] = [
-                        "content_hash is required for current artifact"
-                    ]
-                elif declared_hash != content_hash(value):
-                    errors_by_type[artifact_type] = [
-                        "content_hash does not match artifact content"
+                        "methodology_version does not match installed verifier"
                     ]
                 else:
-                    artifacts[artifact_type] = value
+                    declared_hash = value.get("content_hash")
+                    if declared_hash is None:
+                        errors_by_type[artifact_type] = [
+                            "content_hash is required for current artifact"
+                        ]
+                    elif declared_hash != content_hash(value):
+                        errors_by_type[artifact_type] = [
+                            "content_hash does not match artifact content"
+                        ]
+                    else:
+                        artifacts[artifact_type] = value
 
         for artifact_type, messages in self._reference_errors(artifacts).items():
             errors_by_type.setdefault(artifact_type, []).extend(messages)
@@ -301,8 +469,8 @@ class ArtifactStore:
             try:
                 if path.stat().st_size > MAX_ARTIFACT_BYTES:
                     continue
-                value = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                value = _strict_json_loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
                 continue
             if validate_envelope(value, expected_type="repository-evidence"):
                 continue
@@ -338,6 +506,49 @@ class ArtifactStore:
             for input_id in value.get("inputs", []):
                 if input_id not in available_artifact_ids:
                     add(artifact_type, f"input references missing artifact: {input_id}")
+
+        # Artifact inputs form a directed acyclic derivation graph.  A cycle
+        # would make freshness impossible to establish and can otherwise look
+        # valid when every individual reference exists.
+        input_graph = {
+            value.get("artifact_id"): list(value.get("inputs", []))
+            for value in artifacts.values()
+            if isinstance(value, dict) and isinstance(value.get("artifact_id"), str)
+        }
+        artifact_types_by_id = {
+            value.get("artifact_id"): artifact_type
+            for artifact_type, value in artifacts.items()
+            if isinstance(value, dict) and isinstance(value.get("artifact_id"), str)
+        }
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        reported_cycles: set[tuple[str, ...]] = set()
+
+        def visit(node: str, stack: list[str]) -> None:
+            if node in visiting:
+                cycle = tuple(stack[stack.index(node) :] + [node])
+                if cycle in reported_cycles:
+                    return
+                reported_cycles.add(cycle)
+                labels = " -> ".join(cycle)
+                for cycle_node in set(cycle):
+                    artifact_type = artifact_types_by_id.get(cycle_node)
+                    if artifact_type:
+                        add(artifact_type, f"artifact input cycle detected: {labels}")
+                return
+            if node in visited:
+                return
+            visiting.add(node)
+            stack.append(node)
+            for dependency in input_graph.get(node, []):
+                if dependency in input_graph:
+                    visit(dependency, stack)
+            stack.pop()
+            visiting.remove(node)
+            visited.add(node)
+
+        for node in input_graph:
+            visit(node, [])
 
         evidence_content = artifacts.get("repository-evidence", {}).get("content", {})
         evidence_ids = {

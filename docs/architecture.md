@@ -47,7 +47,7 @@ The repository intentionally carries more than the runtime skill package:
 | --- | --- | --- |
 | `skills/` | Ten `SKILL.md` files and orchestrator protocol resources | Copied by an Agent Skills installer; no Python dependency. |
 | `src/coherence/` | Optional verifier implementation | Included in the wheel and sdist only. |
-| `tests/`, `examples/`, `docs/`, `scripts/` | Development, evaluation, and contributor material | Included in the sdist when useful; never required by installed skills. |
+| `tests/`, `examples/`, `docs/`, `scripts/` | Development, evaluation, and contributor material | Source-checkout only; excluded from the wheel, sdist, and skill archive. |
 | `.coherence/`, `.agents/`, `build/`, `dist/`, reports | Generated target or build state | Ignored and rejected from runtime/release boundaries. |
 
 `coherence release-check` builds in a clean staging tree so a local cache
@@ -76,9 +76,11 @@ can resume from target files without importing Python or reading conversation
 history.
 
 The verifier's `doctor`, `explain`, and `findings` commands are read-only. The
-`eval` command executes only the repository's declared example fixtures, and
-the release checker invokes the packaging backend and installs artifacts in
-disposable environments; both require a trusted checkout.
+default `eval` command validates scenario metadata without importing target
+Python; `--trusted-fixtures` explicitly opts into executing declared example
+fixtures. The release checker invokes the packaging backend, scans public Git
+history, and installs artifacts in disposable environments. These execution
+paths require a trusted checkout.
 
 ## Target workspace and resumption
 

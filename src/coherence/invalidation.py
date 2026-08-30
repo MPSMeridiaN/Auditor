@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
-from .models import stable_id, utc_now
+from .models import METHODOLOGY_VERSION, stable_id, utc_now
 from .store import ArtifactStore
 
 
@@ -68,13 +68,41 @@ def changed_paths(
     if result.returncode != 0:
         detail = result.stderr.strip() or "git diff failed"
         raise ValueError(f"could not resolve git diff base {base}: {detail}")
-    return sorted(
-        {
-            _normalize_path(line)
-            for line in result.stdout.splitlines()
-            if line.strip()
-        }
-    )
+    paths = {
+        _normalize_path(line)
+        for line in result.stdout.splitlines()
+        if line.strip()
+    }
+    # ``git diff`` omits untracked files.  They are still implementation or
+    # documentation evidence and must not silently escape the regression scope.
+    try:
+        status = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(Path(root).resolve()),
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f"could not inspect git status: {exc}") from exc
+    if status.returncode != 0:
+        detail = status.stderr.strip() or "git status failed"
+        raise ValueError(f"could not inspect git status: {detail}")
+    for line in status.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        raw_path = line[3:].strip()
+        for candidate in raw_path.split(" -> "):
+            if candidate:
+                paths.add(_normalize_path(candidate))
+    return sorted(paths)
 
 
 def _matches(path: str, pattern: str) -> bool:
@@ -189,6 +217,7 @@ def compute_scope(
     return {
         "artifact_type": "regression-scope",
         "schema_version": "1.0",
+        "methodology_version": METHODOLOGY_VERSION,
         "artifact_id": "artifact/regression-scope",
         "run_id": stable_id("run", f"regression:{source_revision}:{'|'.join(changed)}"),
         "status": "partial" if unknown_paths else "complete",

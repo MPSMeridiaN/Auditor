@@ -184,7 +184,8 @@ class DistributionTests(unittest.TestCase):
         pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertNotIn("[tool.setuptools.data-files]", pyproject)
         manifest = (PROJECT_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
-        self.assertIn("recursive-include skills *.md *.json", manifest)
+        self.assertIn("recursive-include src/coherence *.py", manifest)
+        self.assertIn("prune skills", manifest)
         self.assertIn("prune .coherence", manifest)
         self.assertIn("prune build", manifest)
 
