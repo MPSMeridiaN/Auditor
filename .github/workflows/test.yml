@@ -55,6 +55,7 @@ jobs:
           if result.returncode or payload.get("stage") != "complete":
               print(result.stderr, file=sys.stderr, end="")
               raise SystemExit(1)
+          PY
       - name: Run strict environment diagnostics
         run: coherence doctor --strict --json .
 
@@ -83,4 +84,3 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 14
-          PY
