@@ -10,7 +10,7 @@
 >
 > *Find the bugs between the layers.*
 
-![Whiteboard map of a user action crossing UI, state, domain, and storage, with a coherence gap routed to repair and revalidation.](docs/assets/system-coherence-hero.webp)
+![Hand-drawn doodle board map of a user action crossing UI, state, domain, and storage, with a coherence gap routed to repair and revalidation.](docs/assets/system-coherence-hero.webp)
 
 [Install the complete suite](#install) · [See the methodology](docs/methodology.md) · [Explore the docs](#explore)
 
@@ -19,14 +19,14 @@
 A file can be correct and a test can be green while the UI, state, domain,
 persistence, workers, or external systems disagree.
 
-![Whiteboard comparison: ordinary review marks three files as locally correct, while System Coherence follows the disagreement between UI, state, domain, persistence, and external systems.](docs/assets/review-vs-coherence.svg)
+![Hand-drawn doodle board comparing ordinary review with System Coherence: files pass locally while UI, state, domain, and storage disagree.](docs/assets/review-vs-coherence.webp)
 
 ## How the suite works
 
 The ten Agent Skills turn an unfamiliar codebase into an evidence-backed
 behavioral case, one handoff at a time.
 
-![Ten System Coherence skills arranged as a numbered workflow from route and reconstruction through capability discovery, behavior and state modeling, tracing, audit, remediation, regression analysis, revalidation, and a verified result.](docs/assets/workflow-10-skills.svg)
+![Hand-drawn doodle board showing the ten-skill workflow from route and reconstruction through discovery, modeling, tracing, audit, repair, scope, and verification.](docs/assets/workflow-10-skills.webp)
 
 <code>system-coherence</code> routes the next stage from the current artifacts.
 Specialists record evidence, uncertainty, freshness, and the next safe
@@ -43,7 +43,7 @@ npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill '*' --copy --yes
 Run it from the target repository. Or give this repository URL to your coding
 agent and ask it to install the complete System Coherence suite.
 
-![Whiteboard installation flow from a GitHub URL through an Agent Skills installer into ten skills, a target repository, and the system-coherence starting point.](docs/assets/install-flow.svg)
+![Hand-drawn doodle board showing SOURCE to COPY to 10 SKILLS to TARGET REPO and READY, with the Auditor, copy, and system-coherence labels.](docs/assets/install-flow.webp)
 
 ### Start
 
@@ -66,14 +66,14 @@ Each stage writes an inspectable artifact into <code>.coherence/</code>. If a
 session stops, the next agent reads the current handoff and resumes from the
 last valid stage.
 
-![Whiteboard handoff from Agent A through an artifact and the target repository's .coherence folder to Agent B, with interruption and resume shown above the durable record.](docs/assets/skill-handoffs.svg)
+![Hand-drawn doodle board showing AGENT A writing an artifact into .coherence, an interruption, and AGENT B reading the handoff and resuming.](docs/assets/skill-handoffs.webp)
 
 ## One coherence gap
 
 Imagine a workspace that is registered, then deleted outside the application.
 The UI and registry still say it exists; the filesystem says it does not.
 
-![Whiteboard lifecycle showing a registered workspace whose folder is deleted externally, leaving the UI and registry stale. The missing state is registered-but-missing.](docs/assets/coherence-gap.svg)
+![Hand-drawn doodle board showing REGISTERED, DELETED OUTSIDE, and STALE VIEW, with a coherence gap and the missing state registered-but-missing.](docs/assets/coherence-gap.webp)
 
 **Missing state:** <code>registered-but-missing</code> · **Broken transition:** external deletion → reconciliation
 
@@ -86,7 +86,7 @@ reporting the deleted object.
 The repository keeps a paper trail for structural checks, fixture behavior, and
 release boundaries.
 
-![Whiteboard verification board showing unit and graph tests, three trusted fixture scenarios, a negative control, skill discovery, resumable routing, clean installs, and privacy checks.](docs/assets/verification-board.svg)
+![Hand-drawn doodle board showing COVERAGE evidence from outcomes, graph, unit tests, fixtures, and a negative control flowing to FINDING or CLEAN results.](docs/assets/verification-board.webp)
 
 The checks are intentionally scoped: a passing artifact graph or fixture run
 does not claim universal behavioral coverage. See [Evaluation](docs/evaluation.md)
