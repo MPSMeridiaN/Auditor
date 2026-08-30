@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "system-coherence"
+version = "1.0.0"
+description = "An artifact-backed Agent Skill framework for behavioral coherence"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "System Coherence contributors" }]
+dependencies = []
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.scripts]
+coherence = "coherence.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

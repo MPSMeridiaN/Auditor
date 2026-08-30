@@ -1,0 +1,38 @@
+[
+  {
+    "scenario_id": "web-cache-staleness",
+    "architecture": "web application",
+    "module": "examples/web-cache/app.py",
+    "class": "WebCache",
+    "probe": "delete_cache",
+    "capability_ids": ["cap-web-delete"],
+    "expected_finding_category": "stale-derived-state",
+    "expected_finding": true,
+    "negative_control": false,
+    "evidence_paths": ["examples/web-cache/app.py", "examples/web-cache/README.md"]
+  },
+  {
+    "scenario_id": "worker-partial-completion",
+    "architecture": "worker/service",
+    "module": "examples/worker-service/worker.py",
+    "class": "Worker",
+    "probe": "failed_side_effect",
+    "capability_ids": ["cap-worker-process"],
+    "expected_finding_category": "partial-commit",
+    "expected_finding": true,
+    "negative_control": false,
+    "evidence_paths": ["examples/worker-service/worker.py", "examples/worker-service/README.md"]
+  },
+  {
+    "scenario_id": "clean-cli-rename",
+    "architecture": "CLI",
+    "module": "examples/clean-cli/ledger.py",
+    "class": "CleanLedger",
+    "probe": "atomic_rename",
+    "capability_ids": ["cap-cli-rename"],
+    "expected_finding_category": null,
+    "expected_finding": false,
+    "negative_control": true,
+    "evidence_paths": ["examples/clean-cli/ledger.py", "examples/clean-cli/README.md"]
+  }
+]

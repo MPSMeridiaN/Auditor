@@ -1,0 +1,51 @@
+# Generated target-repository state. The skill collection writes here only
+# when this checkout is itself used as an audit target.
+.coherence/
+
+# Agent host state and local skill-install metadata
+.agents/
+skills-lock.json
+
+# Python caches, test output, and local environments
+__pycache__/
+*.py[cod]
+*$py.class
+.coverage
+.coverage.*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.venv/
+venv/
+env/
+ENV/
+
+# Build and packaging products
+build/
+dist/
+*.egg-info/
+
+# Generated reports and disposable release-test output
+coverage/
+htmlcov/
+audit-output/
+release-evidence/
+reports/
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+
+# Logs, editor state, and operating-system metadata
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evaluation-scenarios.schema.json",
+  "title": "System Coherence executable evaluation scenarios",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "scenario_id",
+      "architecture",
+      "module",
+      "class",
+      "probe",
+      "capability_ids",
+      "expected_finding_category",
+      "expected_finding",
+      "negative_control",
+      "evidence_paths"
+    ],
+    "properties": {
+      "scenario_id": {"type": "string", "minLength": 1},
+      "architecture": {"type": "string", "minLength": 1},
+      "module": {"type": "string", "minLength": 1},
+      "class": {"type": "string", "minLength": 1},
+      "probe": {"type": "string", "minLength": 1},
+      "capability_ids": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "string", "minLength": 1}
+      },
+      "expected_finding_category": {"type": ["string", "null"]},
+      "expected_finding": {"type": "boolean"},
+      "negative_control": {"type": "boolean"},
+      "evidence_paths": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "string", "minLength": 1}
+      }
+    },
+    "additionalProperties": true
+  }
+}

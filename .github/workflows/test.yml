@@ -1,0 +1,54 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate skills
+        run: coherence validate-skills --json .
+      - name: Run fixture evaluations
+        run: coherence eval --json .
+      - name: Generate disposable dogfood workspace
+        run: python scripts/dogfood.py
+      - name: Validate dogfood workspace
+        run: coherence validate --json .
+      - name: Check resumable route
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          result = subprocess.run(
+              ["coherence", "route", "--json", "."],
+              check=False,
+              capture_output=True,
+              text=True,
+          )
+          print(result.stdout, end="")
+          payload = json.loads(result.stdout)
+          if result.returncode or payload.get("stage") != "complete":
+              print(result.stderr, file=sys.stderr, end="")
+              raise SystemExit(1)
+          PY

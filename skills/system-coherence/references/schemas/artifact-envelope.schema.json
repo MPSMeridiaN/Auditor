@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact-envelope.schema.json",
+  "title": "System Coherence artifact envelope",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "artifact_id",
+    "run_id",
+    "status",
+    "source_revision",
+    "created_at",
+    "producer",
+    "inputs",
+    "evidence_refs",
+    "uncertainty",
+    "freshness",
+    "content"
+  ],
+  "properties": {
+    "artifact_type": {
+      "type": "string",
+      "enum": [
+        "repository-evidence",
+        "system-model",
+        "capability-map",
+        "behavioral-contracts",
+        "state-model",
+        "implementation-traces",
+        "audit-findings",
+        "intervention-plan",
+        "regression-scope",
+        "revalidation-results",
+        "coherence-ledger"
+      ]
+    },
+    "schema_version": {"const": "1.0"},
+    "artifact_id": {"type": "string", "pattern": "^artifact/[a-z0-9-]+$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {
+      "type": "string",
+      "enum": ["complete", "partial", "blocked", "stale", "invalid"]
+    },
+    "source_revision": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "producer": {
+      "type": "object",
+      "required": ["skill", "agent"],
+      "properties": {
+        "skill": {"type": "string", "minLength": 1},
+        "agent": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "inputs": {"type": "array", "items": {"type": "string"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "uncertainty": {"type": "array", "items": {"type": "object"}},
+    "freshness": {
+      "type": "object",
+      "required": ["state", "checked_at", "dependency_fingerprint"],
+      "properties": {
+        "state": {"enum": ["current", "stale", "unknown"]},
+        "checked_at": {"type": "string", "minLength": 1},
+        "dependency_fingerprint": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"artifact_type": {"const": "repository-evidence"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/repository-evidence"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/repositoryEvidence"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "system-model"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/system-model"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/systemModel"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "capability-map"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/capability-map"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/capabilityMap"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "behavioral-contracts"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/behavioral-contracts"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/behavioralContracts"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "state-model"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/state-model"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/stateModel"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "implementation-traces"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/implementation-traces"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/implementationTraces"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "audit-findings"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/audit-findings"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/auditFindings"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "intervention-plan"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/intervention-plan"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/interventionPlan"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "regression-scope"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/regression-scope"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/regressionScope"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "revalidation-results"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/revalidation-results"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/revalidationResults"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"artifact_type": {"const": "coherence-ledger"}}},
+      "then": {
+        "properties": {
+          "artifact_id": {"const": "artifact/coherence-ledger"},
+          "content": {"$ref": "artifact-payloads.schema.json#/$defs/coherenceLedger"}
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

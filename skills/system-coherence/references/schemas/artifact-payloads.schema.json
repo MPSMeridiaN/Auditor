@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact-payloads.schema.json",
+  "title": "System Coherence payload shape index",
+  "description": "The runtime enforces these required collection names and cross-artifact references semantically.",
+  "anyOf": [
+    {"$ref": "#/$defs/repositoryEvidence"},
+    {"$ref": "#/$defs/systemModel"},
+    {"$ref": "#/$defs/capabilityMap"},
+    {"$ref": "#/$defs/behavioralContracts"},
+    {"$ref": "#/$defs/stateModel"},
+    {"$ref": "#/$defs/implementationTraces"},
+    {"$ref": "#/$defs/auditFindings"},
+    {"$ref": "#/$defs/interventionPlan"},
+    {"$ref": "#/$defs/regressionScope"},
+    {"$ref": "#/$defs/revalidationResults"},
+    {"$ref": "#/$defs/coherenceLedger"}
+  ],
+  "$defs": {
+    "idObject": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string", "minLength": 1}}
+    },
+    "repositoryEvidence": {
+      "type": "object",
+      "required": ["files"],
+      "properties": {"files": {"type": "array", "items": {"type": "object"}}}
+    },
+    "systemModel": {"type": "object", "required": ["system_id"]},
+    "capabilityMap": {
+      "type": "object",
+      "required": ["capabilities"],
+      "properties": {"capabilities": {"type": "array", "items": {"type": "object"}}}
+    },
+    "behavioralContracts": {
+      "type": "object",
+      "required": ["contracts"],
+      "properties": {"contracts": {"type": "array", "items": {"type": "object"}}}
+    },
+    "stateModel": {
+      "type": "object",
+      "required": ["states", "transitions"],
+      "properties": {
+        "states": {"type": "array", "items": {"type": "object"}},
+        "transitions": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "implementationTraces": {
+      "type": "object",
+      "required": ["traces"],
+      "properties": {"traces": {"type": "array", "items": {"type": "object"}}}
+    },
+    "auditFindings": {
+      "type": "object",
+      "required": ["findings"],
+      "properties": {"findings": {"type": "array", "items": {"type": "object"}}}
+    },
+    "interventionPlan": {
+      "type": "object",
+      "required": ["actions"],
+      "properties": {"actions": {"type": "array", "items": {"type": "object"}}}
+    },
+    "regressionScope": {
+      "type": "object",
+      "required": ["changed_paths", "impacted_capability_ids"],
+      "properties": {
+        "changed_paths": {"type": "array", "items": {"type": "string"}},
+        "impacted_capability_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "revalidationResults": {
+      "type": "object",
+      "required": ["validations"],
+      "properties": {
+        "validations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "validation_id",
+              "target_type",
+              "target_id",
+              "result",
+              "checked_revision",
+              "checks",
+              "evidence_refs"
+            ],
+            "properties": {
+              "validation_id": {"type": "string", "minLength": 1},
+              "target_type": {
+                "type": "string",
+                "enum": ["capability", "contract", "transition", "trace", "finding"]
+              },
+              "target_id": {"type": "string", "minLength": 1},
+              "result": {
+                "type": "string",
+                "enum": ["verified", "failed", "inconclusive", "unverified"]
+              },
+              "checked_revision": {"type": "string", "minLength": 1},
+              "checks": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1}
+              },
+              "evidence_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1}
+              },
+              "capability_ids": {
+                "type": "array",
+                "items": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "coherenceLedger": {
+      "type": "object",
+      "required": ["entries"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["capability_id", "status"],
+            "properties": {
+              "capability_id": {"type": "string", "minLength": 1},
+              "status": {
+                "type": "string",
+                "enum": [
+                  "verified",
+                  "broken",
+                  "partial",
+                  "needs-revalidation",
+                  "blocked",
+                  "unverified"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
