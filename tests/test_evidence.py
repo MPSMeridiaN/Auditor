@@ -12,7 +12,7 @@ class EvidenceCaptureTests(unittest.TestCase):
             root = Path(directory)
             (root / "src").mkdir()
             source = root / "src" / "app.py"
-            source.write_text("print('ok')\n", encoding="utf-8")
+            source.write_bytes(b"print('ok')\n")
             (root / ".coherence").mkdir()
             (root / ".coherence" / "secret.txt").write_text("ignore", encoding="utf-8")
             (root / ".agents").mkdir()
@@ -25,7 +25,7 @@ class EvidenceCaptureTests(unittest.TestCase):
             self.assertNotIn(".coherence/secret.txt", files)
             self.assertNotIn(".agents/local.md", files)
             self.assertEqual(files["src/app.py"]["kind"], "source")
-            self.assertEqual(files["src/app.py"]["size"], 13)
+            self.assertEqual(files["src/app.py"]["size"], len(b"print('ok')\n"))
             self.assertEqual(len(files["src/app.py"]["sha256"]), 64)
 
     def test_capture_excludes_ignored_install_and_secret_files(self):
