@@ -42,7 +42,7 @@ class SecurityBoundaryTests(unittest.TestCase):
 
             try:
                 with self.assertRaises(ValueError):
-                    _load_module(root, Path("fixture.py"))
+                    _load_module(root, Path("fixture.py"), "fixture")
             finally:
                 link.unlink(missing_ok=True)
                 outside.unlink(missing_ok=True)
