@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 920" role="img" aria-labelledby="title desc">
+  <title id="title">The ten System Coherence skills</title>
+  <desc id="desc">System Coherence routes ten skills through reconstruction, capability discovery, behavior and state modeling, implementation tracing, coherence auditing, remediation, regression analysis, and revalidation before a verified result.</desc>
+  <defs>
+    <pattern id="paper-grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#e8e0d3" stroke-width="1" opacity=".55"/>
+    </pattern>
+    <marker id="arrow-blue" markerWidth="13" markerHeight="13" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" fill="none" stroke="#1f5ba8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-coral" markerWidth="13" markerHeight="13" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" fill="none" stroke="#c64f43" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1500" height="920" rx="28" fill="#f8f5ed"/>
+  <rect x="18" y="18" width="1464" height="884" rx="22" fill="url(#paper-grid)"/>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f">
+    <text x="58" y="72" font-size="31" font-weight="700" letter-spacing="1">TEN SKILLS. ONE BEHAVIORAL CASE.</text>
+    <text x="60" y="106" font-size="18" fill="#65717b">The orchestrator moves one evidence-backed handoff at a time.</text>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#fffdf8" stroke="#1f5ba8" stroke-width="4">
+      <rect x="60" y="160" width="220" height="190" rx="20" transform="rotate(-.7 170 255)"/>
+      <rect x="345" y="160" width="220" height="190" rx="20" transform="rotate(.5 455 255)"/>
+      <rect x="630" y="160" width="220" height="190" rx="20" transform="rotate(-.4 740 255)"/>
+      <rect x="915" y="160" width="220" height="190" rx="20" transform="rotate(.6 1025 255)"/>
+      <rect x="1200" y="160" width="220" height="190" rx="20" transform="rotate(-.5 1310 255)"/>
+      <rect x="60" y="480" width="220" height="190" rx="20" transform="rotate(.6 170 575)"/>
+      <rect x="345" y="480" width="220" height="190" rx="20" transform="rotate(-.5 455 575)"/>
+      <rect x="630" y="480" width="220" height="190" rx="20" transform="rotate(.5 740 575)"/>
+      <rect x="915" y="480" width="220" height="190" rx="20" transform="rotate(-.6 1025 575)"/>
+      <rect x="1200" y="480" width="220" height="190" rx="20" transform="rotate(.4 1310 575)"/>
+    </g>
+    <rect x="60" y="160" width="220" height="190" rx="20" fill="#1f5ba8" stroke="#1f5ba8" stroke-width="4"/>
+    <rect x="60" y="480" width="220" height="190" rx="20" fill="#eef7f0" stroke="#2a7a5b" stroke-width="4"/>
+
+    <path d="M280 255h64M565 255h64M850 255h64M1135 255h64M1310 350v128" fill="none" stroke="#1f5ba8" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M1200 575h-64M915 575h-64M630 575h-64M345 575h-64" fill="none" stroke="#1f5ba8" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M170 670C170 742 480 780 600 800" fill="none" stroke="#c64f43" stroke-width="4" marker-end="url(#arrow-coral)"/>
+  </g>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f">
+    <g font-size="18" font-weight="700">
+      <text x="82" y="198" fill="#fffdf8">01 · ROUTE + RESUME</text>
+      <text x="374" y="198" fill="#1f5ba8">02 · RECONSTRUCT</text>
+      <text x="658" y="198" fill="#1f5ba8">03 · DISCOVER</text>
+      <text x="943" y="198" fill="#1f5ba8">04 · MODEL</text>
+      <text x="1228" y="198" fill="#1f5ba8">05 · MODEL</text>
+      <text x="82" y="518" fill="#2a7a5b">10 · REVALIDATE</text>
+      <text x="374" y="518" fill="#1f5ba8">09 · ANALYZE</text>
+      <text x="658" y="518" fill="#1f5ba8">08 · PLAN</text>
+      <text x="943" y="518" fill="#1f5ba8">07 · AUDIT</text>
+      <text x="1228" y="518" fill="#1f5ba8">06 · TRACE</text>
+    </g>
+
+    <g font-size="21" font-weight="700">
+      <text x="82" y="247" fill="#fffdf8"><tspan x="82" dy="0">system-</tspan><tspan x="82" dy="28">coherence</tspan></text>
+      <text x="374" y="247"><tspan x="374" dy="0">reconstruct-</tspan><tspan x="374" dy="28">system</tspan></text>
+      <text x="658" y="247"><tspan x="658" dy="0">discover-</tspan><tspan x="658" dy="28">capabilities</tspan></text>
+      <text x="943" y="247"><tspan x="943" dy="0">model-</tspan><tspan x="943" dy="28">behavior</tspan></text>
+      <text x="1228" y="247"><tspan x="1228" dy="0">model-</tspan><tspan x="1228" dy="28">states</tspan></text>
+      <text x="82" y="567" fill="#2a7a5b"><tspan x="82" dy="0">revalidate-</tspan><tspan x="82" dy="28">coherence</tspan></text>
+      <text x="374" y="567"><tspan x="374" dy="0">analyze-</tspan><tspan x="374" dy="28">regression</tspan></text>
+      <text x="658" y="567"><tspan x="658" dy="0">plan-</tspan><tspan x="658" dy="28">remediation</tspan></text>
+      <text x="943" y="567"><tspan x="943" dy="0">audit-</tspan><tspan x="943" dy="28">coherence</tspan></text>
+      <text x="1228" y="567"><tspan x="1228" dy="0">trace-</tspan><tspan x="1228" dy="28">implementation</tspan></text>
+    </g>
+
+    <g font-size="17" fill="#65717b">
+      <text x="82" y="321" fill="#dceafa">select the next safe stage</text>
+      <text x="374" y="321">boundaries + authorities</text>
+      <text x="658" y="321">end-to-end capabilities</text>
+      <text x="943" y="321">intent + invariants</text>
+      <text x="1228" y="321">reachable states</text>
+      <text x="82" y="641" fill="#2a7a5b">changed behavior is checked</text>
+      <text x="374" y="641">smallest safe scope</text>
+      <text x="658" y="641">acceptance-driven repair</text>
+      <text x="943" y="641">cross-layer gaps</text>
+      <text x="1228" y="641">source + runtime evidence</text>
+    </g>
+
+    <rect x="560" y="775" width="380" height="82" rx="18" fill="#fff7df" stroke="#c64f43" stroke-width="4"/>
+    <text x="750" y="810" font-size="27" font-weight="700" text-anchor="middle" fill="#c64f43">VERIFIED</text>
+    <text x="750" y="837" font-size="16" text-anchor="middle" fill="#65717b">current evidence, no open gap</text>
+  </g>
+</svg>

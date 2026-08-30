@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+  <title id="title">System Coherence verification board</title>
+  <desc id="desc">The repository verifies its workflow with unit and graph tests, trusted fixture scenarios, a negative control, skill discovery, protocol routing, clean package installs, and source-history privacy checks.</desc>
+  <defs>
+    <pattern id="paper-grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#e8e0d3" stroke-width="1" opacity=".55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1440" height="760" rx="28" fill="#f8f5ed"/>
+  <rect x="18" y="18" width="1404" height="724" rx="22" fill="url(#paper-grid)"/>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f">
+    <text x="58" y="72" font-size="31" font-weight="700" letter-spacing="1">PROOF HAS A PAPER TRAIL.</text>
+    <text x="60" y="106" font-size="18" fill="#65717b">The checks are narrow by design: structural integrity, fixture behavior, and release boundaries.</text>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <rect x="58" y="150" width="710" height="456" rx="23" fill="#eef4fb" stroke="#1f5ba8" stroke-width="4" transform="rotate(-.4 413 378)"/>
+    <rect x="818" y="150" width="564" height="456" rx="23" fill="#fff7df" stroke="#c64f43" stroke-width="4" transform="rotate(.5 1100 378)"/>
+    <path d="M88 206C240 198 548 211 738 202M848 206C1001 211 1222 198 1352 207" fill="none" stroke="#c64f43" stroke-width="3"/>
+    <g fill="none" stroke="#2a7a5b" stroke-width="5">
+      <path d="M101 256l12 12 23-30"/>
+      <path d="M101 310l12 12 23-30"/>
+      <path d="M101 364l12 12 23-30"/>
+      <path d="M101 418l12 12 23-30"/>
+      <path d="M101 472l12 12 23-30"/>
+      <path d="M101 526l12 12 23-30"/>
+    </g>
+    <rect x="866" y="259" width="470" height="94" rx="16" fill="#fffdf8" stroke="#2a7a5b" stroke-width="3"/>
+    <rect x="866" y="388" width="470" height="94" rx="16" fill="#fffdf8" stroke="#1f5ba8" stroke-width="3"/>
+    <rect x="866" y="517" width="470" height="58" rx="13" fill="#fff1ee" stroke="#c64f43" stroke-width="3"/>
+  </g>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f">
+    <text x="88" y="190" font-size="25" font-weight="700" fill="#1f5ba8">CURRENT COVERAGE</text>
+    <text x="156" y="270" font-size="21">unit + graph tests</text>
+    <text x="156" y="324" font-size="21">3 trusted fixture scenarios</text>
+    <text x="156" y="378" font-size="21">negative control</text>
+    <text x="156" y="432" font-size="21">10-skill discovery + references</text>
+    <text x="156" y="486" font-size="21">protocol + resumable route</text>
+    <text x="156" y="540" font-size="21">clean installs + privacy scan</text>
+
+    <text x="848" y="190" font-size="25" font-weight="700" fill="#c64f43">WHAT A FRESH RUN SHOWS</text>
+    <text x="900" y="298" font-size="24" font-weight="700" fill="#2a7a5b">3 scenarios pass</text>
+    <text x="900" y="330" font-size="17" fill="#65717b">two lifecycle findings are detected</text>
+    <text x="900" y="427" font-size="24" font-weight="700" fill="#1f5ba8">1 rename stays clean</text>
+    <text x="900" y="459" font-size="17" fill="#65717b">the negative control is not over-reported</text>
+    <text x="1101" y="554" font-size="20" font-weight="700" fill="#c64f43" text-anchor="middle">verified here ≠ universal coverage</text>
+    <text x="720" y="674" font-size="22" fill="#65717b" text-anchor="middle">Read the evidence, uncertainty, and limits in Evaluation.</text>
+  </g>
+</svg>

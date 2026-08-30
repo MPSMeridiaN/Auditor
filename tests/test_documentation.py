@@ -7,33 +7,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class DocumentationTests(unittest.TestCase):
-    def test_readme_contains_operational_quickstart_and_limits(self):
-        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-
-        for phrase in (
-            "coherence init",
-            "coherence route",
-            ".coherence",
-            "coherence invalidate",
-            "limitations",
-            "coherence eval",
-        ):
-            self.assertIn(phrase, readme.lower())
-
-    def test_readme_has_the_public_story_and_local_visual_assets(self):
+    def test_readme_is_a_visual_first_product_landing_page(self):
         readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
         lowered = readme.lower()
 
         for phrase in (
-            "most coding agents inspect files",
-            "install in 30 seconds",
-            "first invocation",
-            "what happens when you run it",
-            "why not just tests",
-            "artifacts are the shared memory",
-            "coherence gap",
-            "resume",
-            "revalidate",
+            "audit the system, not the files",
+            "why ordinary review misses the bug",
+            "how the suite works",
+            "install",
+            "durable memory",
+            "one coherence gap",
+            "proof / verification",
+            "explore",
         ):
             self.assertIn(phrase, lowered)
 
@@ -41,13 +27,20 @@ class DocumentationTests(unittest.TestCase):
             'npx skills add "https://github.com/MPSMeridiaN/Auditor" --skill \'*\' --copy --yes',
             readme,
         )
-        self.assertIn("public github url", lowered)
-        self.assertIn("install with your ai agent", lowered)
         self.assertIn("https://github.com/MPSMeridiaN/Auditor", readme)
+        self.assertIn("advanced installation", lowered)
+        self.assertIn("optional python", lowered)
+        self.assertNotIn("coherence invalidate", lowered)
+        self.assertNotIn("coherence release-check", lowered)
 
         for relative_path in (
             "docs/assets/system-coherence-hero.webp",
+            "docs/assets/review-vs-coherence.svg",
+            "docs/assets/workflow-10-skills.svg",
+            "docs/assets/install-flow.svg",
             "docs/assets/skill-handoffs.svg",
+            "docs/assets/coherence-gap.svg",
+            "docs/assets/verification-board.svg",
         ):
             self.assertIn(relative_path, readme)
             self.assertTrue((PROJECT_ROOT / relative_path).is_file())
@@ -56,7 +49,17 @@ class DocumentationTests(unittest.TestCase):
             (PROJECT_ROOT / "docs/assets/system-coherence-hero.webp").stat().st_size,
             500_000,
         )
-        ET.parse(PROJECT_ROOT / "docs/assets/skill-handoffs.svg")
+        for relative_path in (
+            "docs/assets/review-vs-coherence.svg",
+            "docs/assets/workflow-10-skills.svg",
+            "docs/assets/install-flow.svg",
+            "docs/assets/skill-handoffs.svg",
+            "docs/assets/coherence-gap.svg",
+            "docs/assets/verification-board.svg",
+        ):
+            ET.parse(PROJECT_ROOT / relative_path)
+
+        self.assertLess(len(readme), 10_000)
         self.assertNotIn("<owner>/<repo>", readme)
 
     def test_public_docs_and_ci_are_present(self):

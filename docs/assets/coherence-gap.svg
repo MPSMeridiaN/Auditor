@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 780" role="img" aria-labelledby="title desc">
+  <title id="title">A registered workspace whose folder disappears</title>
+  <desc id="desc">A workspace is registered, its folder is deleted externally, and the UI and registry still report it as present. The missing state is registered-but-missing and the broken transition is reconciliation.</desc>
+  <defs>
+    <pattern id="paper-grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#e8e0d3" stroke-width="1" opacity=".55"/>
+    </pattern>
+    <marker id="arrow-blue" markerWidth="13" markerHeight="13" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" fill="none" stroke="#1f5ba8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-coral" markerWidth="13" markerHeight="13" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" fill="none" stroke="#c64f43" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="780" rx="28" fill="#f8f5ed"/>
+  <rect x="18" y="18" width="1404" height="744" rx="22" fill="url(#paper-grid)"/>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f">
+    <text x="58" y="72" font-size="31" font-weight="700" letter-spacing="1">THE BUG BETWEEN THE LAYERS</text>
+    <text x="60" y="106" font-size="18" fill="#65717b">A lifecycle can fail when one reality changes and the other representations do not.</text>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#fffdf8" stroke="#1f5ba8" stroke-width="4">
+      <rect x="68" y="160" width="350" height="158" rx="19" transform="rotate(-.5 243 239)"/>
+      <rect x="545" y="160" width="350" height="158" rx="19" transform="rotate(.5 720 239)"/>
+      <rect x="1022" y="160" width="350" height="158" rx="19" transform="rotate(-.4 1197 239)"/>
+    </g>
+    <path d="M418 239h115M895 239h115" fill="none" stroke="#1f5ba8" stroke-width="4" marker-end="url(#arrow-blue)"/>
+    <path d="M243 318v88M720 318v88M1197 318v88" fill="none" stroke="#c64f43" stroke-width="4" marker-end="url(#arrow-coral)"/>
+
+    <g fill="#fffdf8" stroke="#20272f" stroke-width="3">
+      <rect x="68" y="410" width="350" height="132" rx="17"/>
+      <rect x="545" y="410" width="350" height="132" rx="17"/>
+      <rect x="1022" y="410" width="350" height="132" rx="17"/>
+    </g>
+    <rect x="472" y="596" width="496" height="88" rx="18" fill="#fff1ee" stroke="#c64f43" stroke-width="4" transform="rotate(-.3 720 640)"/>
+  </g>
+
+  <g font-family="'Segoe Print','Bradley Hand','Comic Sans MS',sans-serif" fill="#20272f" text-anchor="middle">
+    <g font-size="18" font-weight="700" fill="#1f5ba8">
+      <text x="94" y="193" text-anchor="start">1 · REGISTERED</text>
+      <text x="571" y="193" text-anchor="start">2 · DELETED EXTERNALLY</text>
+      <text x="1048" y="193" text-anchor="start">3 · VIEW GOES STALE</text>
+    </g>
+    <g font-size="25" font-weight="700">
+      <text x="243" y="244">workspace exists</text>
+      <text x="720" y="244">folder disappears</text>
+      <text x="1197" y="244">delete cannot finish</text>
+    </g>
+    <g font-size="16" fill="#65717b">
+      <text x="243" y="280">registry + filesystem agree</text>
+      <text x="720" y="280">outside the application</text>
+      <text x="1197" y="280">the UI has not reconciled</text>
+    </g>
+
+    <text x="243" y="449" font-size="21" font-weight="700" fill="#1f5ba8">UI</text>
+    <text x="243" y="490" font-size="22">still shows it</text>
+    <text x="243" y="520" font-size="16" fill="#65717b">“registered”</text>
+    <text x="720" y="449" font-size="21" font-weight="700" fill="#1f5ba8">REGISTRY</text>
+    <text x="720" y="490" font-size="22">still says present</text>
+    <text x="720" y="520" font-size="16" fill="#65717b">derived truth</text>
+    <text x="1197" y="449" font-size="21" font-weight="700" fill="#c64f43">FILESYSTEM</text>
+    <text x="1197" y="490" font-size="22" fill="#c64f43">folder is gone</text>
+    <text x="1197" y="520" font-size="16" fill="#c64f43">authoritative reality</text>
+
+    <text x="720" y="631" font-size="27" font-weight="700" fill="#c64f43">MISSING STATE: registered-but-missing</text>
+    <text x="720" y="660" font-size="18" fill="#c64f43">broken transition: external deletion → reconciliation</text>
+    <text x="720" y="726" font-size="22" fill="#65717b">The delete button is only where the disagreement becomes visible.</text>
+  </g>
+</svg>
